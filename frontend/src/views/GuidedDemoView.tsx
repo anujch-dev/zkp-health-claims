@@ -1,5 +1,5 @@
 import React from 'react';
-import { Cpu, Play, RotateCcw, AlertTriangle, ShieldCheck, Lock, EyeOff, ShieldAlert, Sparkles } from 'lucide-react';
+import { Cpu, Play, RotateCcw, AlertTriangle, ShieldCheck, Lock, EyeOff, ShieldAlert, Sparkles, XCircle } from 'lucide-react';
 import { ArchitectureCard } from '../components/ArchitectureCard';
 
 interface GuidedDemoViewProps {
@@ -7,6 +7,8 @@ interface GuidedDemoViewProps {
   onTestReplayAttack: () => void;
   onTestExpiredPolicy: () => void;
   onTestLimitExceeded: () => void;
+  onTestTamperedProof: () => void;
+  onTestUnaccreditedHospital: () => void;
   isProcessing: boolean;
   demoLogs: string[];
 }
@@ -16,6 +18,8 @@ export const GuidedDemoView: React.FC<GuidedDemoViewProps> = ({
   onTestReplayAttack,
   onTestExpiredPolicy,
   onTestLimitExceeded,
+  onTestTamperedProof,
+  onTestUnaccreditedHospital,
   isProcessing,
   demoLogs,
 }) => {
@@ -23,7 +27,7 @@ export const GuidedDemoView: React.FC<GuidedDemoViewProps> = ({
     <div className="space-y-8">
       {/* Hero Banner for Judges */}
       <div className="bg-gradient-to-r from-indigo-900/40 via-slate-900 to-purple-950/40 border border-indigo-500/30 rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-2xl">
-        <div className="max-w-3xl space-y-4">
+        <div className="max-w-4xl space-y-4">
           <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 text-xs font-semibold border border-indigo-500/30">
             <Sparkles className="h-3.5 w-3.5" />
             <span>Decentralized Hackathon Prototype · WEB3 · W3-01</span>
@@ -34,17 +38,17 @@ export const GuidedDemoView: React.FC<GuidedDemoViewProps> = ({
           </h1>
 
           <p className="text-sm text-slate-300 leading-relaxed">
-            A full-stack Web3 application solving the multi-billion dollar healthcare dilemma: <span className="text-indigo-300 font-semibold">proving policy validity and procedure eligibility without exposing private medical records or diagnosis details</span> to the insurer.
+            A full-stack Web3 application solving the multi-billion dollar healthcare dilemma: <span className="text-indigo-300 font-semibold">proving policy validity, licensed provider status, and procedure eligibility without exposing private medical records or diagnosis details</span> to the insurer.
           </p>
 
-          <div className="flex flex-wrap gap-3 pt-2">
+          <div className="flex flex-wrap gap-2.5 pt-2">
             <button
               onClick={onRunValidClaim}
               disabled={isProcessing}
               className="flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold text-xs shadow-lg shadow-emerald-500/20 transition disabled:opacity-50"
             >
               <Play className="h-4 w-4 fill-current" />
-              <span>Run Sample Valid Claim Flow</span>
+              <span>Run Sample Valid Claim ($2,400 MRI)</span>
             </button>
 
             <button
@@ -54,6 +58,24 @@ export const GuidedDemoView: React.FC<GuidedDemoViewProps> = ({
             >
               <RotateCcw className="h-4 w-4" />
               <span>Test Replay Attack (Duplicate Nullifier)</span>
+            </button>
+
+            <button
+              onClick={onTestTamperedProof}
+              disabled={isProcessing}
+              className="flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 font-bold text-xs transition disabled:opacity-50"
+            >
+              <XCircle className="h-4 w-4" />
+              <span>Test Tampered Proof (EVM Revert)</span>
+            </button>
+
+            <button
+              onClick={onTestUnaccreditedHospital}
+              disabled={isProcessing}
+              className="flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/40 font-bold text-xs transition disabled:opacity-50"
+            >
+              <Lock className="h-4 w-4" />
+              <span>Test Unlicensed Hospital (Merkle Fail)</span>
             </button>
 
             <button
@@ -137,7 +159,7 @@ export const GuidedDemoView: React.FC<GuidedDemoViewProps> = ({
             demoLogs.map((log, index) => (
               <div key={index} className="flex items-start space-x-2">
                 <span className="text-indigo-400 shrink-0">&gt;</span>
-                <span className={log.includes('SUCCESS') || log.includes('Settled') ? 'text-emerald-300 font-semibold' : log.includes('REJECT') || log.includes('BLOCKED') || log.includes('FAILED') ? 'text-rose-400 font-semibold' : 'text-slate-300'}>
+                <span className={log.includes('SUCCESS') || log.includes('Settled') ? 'text-emerald-300 font-semibold' : log.includes('REJECT') || log.includes('BLOCKED') || log.includes('FAILED') || log.includes('REVERT') ? 'text-rose-400 font-semibold' : 'text-slate-300'}>
                   {log}
                 </span>
               </div>

@@ -1,11 +1,13 @@
 import React from 'react';
-import { Play, RotateCcw, AlertTriangle, ShieldAlert, Cpu } from 'lucide-react';
+import { Play, RotateCcw, AlertTriangle, ShieldAlert, Cpu, Lock, XCircle } from 'lucide-react';
 
 interface GuidedDemoBannerProps {
   onRunValidClaim: () => void;
   onTestReplayAttack: () => void;
   onTestExpiredPolicy: () => void;
   onTestLimitExceeded: () => void;
+  onTestTamperedProof?: () => void;
+  onTestUnaccreditedHospital?: () => void;
   isProcessing: boolean;
 }
 
@@ -14,6 +16,8 @@ export const GuidedDemoBanner: React.FC<GuidedDemoBannerProps> = ({
   onTestReplayAttack,
   onTestExpiredPolicy,
   onTestLimitExceeded,
+  onTestTamperedProof,
+  onTestUnaccreditedHospital,
   isProcessing,
 }) => {
   return (
@@ -21,7 +25,7 @@ export const GuidedDemoBanner: React.FC<GuidedDemoBannerProps> = ({
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center space-x-2">
-            <span className="flex h-2 w-2 rounded-full bg-indigo-400"></span>
+            <span className="flex h-2 w-2 rounded-full bg-indigo-400 animate-ping"></span>
             <h2 className="text-base font-bold text-white flex items-center gap-2">
               <Cpu className="h-4 w-4 text-indigo-400" />
               Live Judge Evaluation & Interactive Sandbox
@@ -32,41 +36,63 @@ export const GuidedDemoBanner: React.FC<GuidedDemoBannerProps> = ({
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={onRunValidClaim}
             disabled={isProcessing}
-            className="flex items-center space-x-2 px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-medium text-xs shadow-md shadow-emerald-500/20 transition disabled:opacity-50"
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-semibold text-xs shadow-md shadow-emerald-500/20 transition disabled:opacity-50"
           >
             <Play className="h-3.5 w-3.5 fill-current" />
-            <span>Run Sample Valid Claim ($2,400 MRI)</span>
+            <span>Sample Valid Claim ($2,400 MRI)</span>
           </button>
 
           <button
             onClick={onTestReplayAttack}
             disabled={isProcessing}
-            className="flex items-center space-x-2 px-3.5 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 font-medium text-xs transition disabled:opacity-50"
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 font-semibold text-xs transition disabled:opacity-50"
           >
             <RotateCcw className="h-3.5 w-3.5" />
-            <span>Test Replay Attack (Duplicate Nullifier)</span>
+            <span>Replay Attack</span>
           </button>
+
+          {onTestTamperedProof && (
+            <button
+              onClick={onTestTamperedProof}
+              disabled={isProcessing}
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 font-semibold text-xs transition disabled:opacity-50"
+            >
+              <XCircle className="h-3.5 w-3.5" />
+              <span>Tampered Proof (EVM Revert)</span>
+            </button>
+          )}
+
+          {onTestUnaccreditedHospital && (
+            <button
+              onClick={onTestUnaccreditedHospital}
+              disabled={isProcessing}
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/40 font-semibold text-xs transition disabled:opacity-50"
+            >
+              <Lock className="h-3.5 w-3.5" />
+              <span>Unlicensed Hospital</span>
+            </button>
+          )}
 
           <button
             onClick={onTestLimitExceeded}
             disabled={isProcessing}
-            className="flex items-center space-x-2 px-3.5 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 font-medium text-xs transition disabled:opacity-50"
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 font-semibold text-xs transition disabled:opacity-50"
           >
             <ShieldAlert className="h-3.5 w-3.5" />
-            <span>Test Limit Exceeded ($75k)</span>
+            <span>Limit Exceeded ($75k)</span>
           </button>
 
           <button
             onClick={onTestExpiredPolicy}
             disabled={isProcessing}
-            className="flex items-center space-x-2 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-medium text-xs transition disabled:opacity-50"
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-semibold text-xs transition disabled:opacity-50"
           >
             <AlertTriangle className="h-3.5 w-3.5" />
-            <span>Test Expired Policy</span>
+            <span>Expired Policy</span>
           </button>
         </div>
       </div>
