@@ -96,11 +96,16 @@ export const INITIAL_HEALTH_RECORDS: HealthRecord[] = [
     ipfsCid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
     recordCommitmentHash: "0x5109b83acdf882b45091763ef90812aa652dfa7c8812e345b9087cfda2349102",
     isEncrypted: true,
+    diagnosisCode: "G43.909",
+    diagnosisDesc: "Intractable migraine with aura, non-responsive to NSAIDs",
+    prescriptions: ["Sumatriptan 100mg", "Ondansetron 4mg"],
+    clinicalNotes: "Cranial MRI indicates stable white matter changes consistent with migraine etiology. No acute intracranial hemorrhage or mass effect.",
     authorizedDoctors: [
       {
         doctorAddress: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
         doctorName: "Dr. Sarah Lin, MD",
         specialty: "Neurology",
+        role: "Specialist",
         grantedAt: "2026-11-10",
         expiresAt: "2027-11-10",
         isActive: true
@@ -118,11 +123,16 @@ export const INITIAL_HEALTH_RECORDS: HealthRecord[] = [
     ipfsCid: "bafybeihkovi2nffb3bptl5d73g2k4x6s6a73o3zcb22r6b7ff3ff3c74de",
     recordCommitmentHash: "0x892a0914bc87123908fde7c98124098ad812f8a912e798234ab8912e98412891",
     isEncrypted: true,
+    diagnosisCode: "I49.9",
+    diagnosisDesc: "Cardiac arrhythmia, unspecified",
+    prescriptions: ["Metoprolol Tartrate 25mg"],
+    clinicalNotes: "24-Hour Ambulatory Holter monitoring revealed predominant sinus rhythm with rare PACs (<0.1%). No malignant dysrhythmia.",
     authorizedDoctors: [
       {
         doctorAddress: "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
         doctorName: "Dr. Marcus Brody, MD",
         specialty: "Cardiology",
+        role: "Doctor",
         grantedAt: "2026-09-01",
         expiresAt: "2026-10-01",
         isActive: false // Expired/Revoked
@@ -140,6 +150,10 @@ export const INITIAL_HEALTH_RECORDS: HealthRecord[] = [
     ipfsCid: "bafybeicg5z4k7k6yhn57u67r5qhn7y26nf3efuylqabf3oclgtqy55fbzdi",
     recordCommitmentHash: "0x127bcf982a8710923e81247091283e716298371ef891236189ab710293847102",
     isEncrypted: true,
+    diagnosisCode: "E78.5",
+    diagnosisDesc: "Hyperlipidemia, unspecified",
+    prescriptions: ["Atorvastatin 20mg"],
+    clinicalNotes: "Fasting lipid panel demonstrates elevated LDL cholesterol (142 mg/dL) and normal triglycerides. Recommended statin therapy.",
     authorizedDoctors: []
   }
 ];

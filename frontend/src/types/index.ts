@@ -1,9 +1,12 @@
-export type UserRole = 'patient' | 'hospital' | 'insurer' | 'demo';
+export type UserRole = 'patient' | 'hospital' | 'insurer' | 'demo' | 'architecture';
+
+export type GranularRole = 'Doctor' | 'Specialist' | 'EmergencyResponder' | 'Auditor';
 
 export interface DoctorAccess {
   doctorAddress: string;
   doctorName: string;
   specialty: string;
+  role?: string;
   grantedAt: string;
   expiresAt: string;
   isActive: boolean;
@@ -20,6 +23,13 @@ export interface HealthRecord {
   ipfsCid: string;
   recordCommitmentHash: string;
   isEncrypted: boolean;
+  ciphertext?: string;
+  iv?: string;
+  salt?: string;
+  clinicalNotes?: string;
+  diagnosisCode?: string;
+  diagnosisDesc?: string;
+  prescriptions?: string[];
   authorizedDoctors: DoctorAccess[];
 }
 
@@ -120,9 +130,50 @@ export interface ClaimSubmission {
 export interface AuditEvent {
   id: string;
   timestamp: string;
-  actorRole: UserRole;
+  actorRole: UserRole | 'emergency' | 'system';
   actorAddress: string;
   action: string;
   details: string;
   badge?: 'success' | 'warning' | 'danger' | 'info';
+  txHash?: string;
+}
+
+export interface BreakGlassLog {
+  id: string;
+  recordId: string;
+  patientAddress: string;
+  responderAddress: string;
+  responderName: string;
+  reason: string;
+  timestamp: string;
+  txHash: string;
+}
+
+export interface CryptographicReceipt {
+  version: string;
+  project: string;
+  track: string;
+  txHash: string;
+  claimId: string;
+  claimNullifier: string;
+  policyCommitment: string;
+  hospitalMerkleRoot: string;
+  claimAmount: number;
+  claimTimestamp: number;
+  settledAt: string;
+  groth16Proof: {
+    curve: string;
+    protocol: string;
+    pi_a: string[];
+    pi_b: string[][];
+    pi_c: string[];
+    publicSignals: string[];
+  };
+  zeroKnowledgeAudit: {
+    diagnosisExposed: false;
+    procedureExposed: false;
+    prescriptionsExposed: false;
+    doubleSpendReplayGuarded: true;
+  };
+  verificationStatus: 'VALID_ON_CHAIN' | 'PAYOUT_SETTLED';
 }

@@ -19,6 +19,7 @@ contract HealthAccessRegistry {
 
     struct AccessPermission {
         bool isGranted;
+        string role;                 // e.g., "Doctor", "Specialist", "EmergencyResponder", "Auditor"
         uint256 grantedAt;
         uint256 expiresAt;
     }
@@ -28,7 +29,7 @@ contract HealthAccessRegistry {
     // patient => recordId list
     mapping(address => bytes32[]) private _patientRecordIds;
 
-    // patient => doctor => recordId => AccessPermission
+    // patient => doctor/grantee => recordId => AccessPermission
     mapping(address => mapping(address => mapping(bytes32 => AccessPermission))) private _doctorPermissions;
 
     // Events
@@ -45,6 +46,7 @@ contract HealthAccessRegistry {
         address indexed patient,
         address indexed doctor,
         bytes32 indexed recordId,
+        string role,
         uint256 expiresAt
     );
 
@@ -55,12 +57,28 @@ contract HealthAccessRegistry {
         uint256 timestamp
     );
 
+    event RecordViewed(
+        address indexed patient,
+        address indexed viewer,
+        bytes32 indexed recordId,
+        uint256 timestamp
+    );
+
+    event RecordBreakGlassAccessed(
+        address indexed patient,
+        address indexed responder,
+        bytes32 indexed recordId,
+        string reason,
+        uint256 timestamp
+    );
+
     // Custom Errors
     error RecordAlreadyExists(bytes32 recordId);
     error RecordNotFound(bytes32 recordId);
     error InvalidDoctorAddress();
     error AccessNotActive();
     error ZeroCommitment();
+    error EmptyBreakGlassReason();
 
     /**
      * @notice Registers an off-chain encrypted medical record commitment
@@ -110,18 +128,40 @@ contract HealthAccessRegistry {
         address doctor,
         uint256 durationInSeconds
     ) external {
-        if (doctor == address(0)) revert InvalidDoctorAddress();
+        _grantAccessWithRole(recordId, doctor, "Doctor", durationInSeconds);
+    }
+
+    /**
+     * @notice Grants access with an explicit granular role (Specialist, Auditor, etc.)
+     */
+    function grantAccessWithRole(
+        bytes32 recordId,
+        address grantee,
+        string calldata role,
+        uint256 durationInSeconds
+    ) external {
+        _grantAccessWithRole(recordId, grantee, role, durationInSeconds);
+    }
+
+    function _grantAccessWithRole(
+        bytes32 recordId,
+        address grantee,
+        string memory role,
+        uint256 durationInSeconds
+    ) internal {
+        if (grantee == address(0)) revert InvalidDoctorAddress();
         if (!_records[msg.sender][recordId].exists) revert RecordNotFound(recordId);
 
         uint256 expiresAt = block.timestamp + durationInSeconds;
 
-        _doctorPermissions[msg.sender][doctor][recordId] = AccessPermission({
+        _doctorPermissions[msg.sender][grantee][recordId] = AccessPermission({
             isGranted: true,
+            role: role,
             grantedAt: block.timestamp,
             expiresAt: expiresAt
         });
 
-        emit AccessGranted(msg.sender, doctor, recordId, expiresAt);
+        emit AccessGranted(msg.sender, grantee, recordId, role, expiresAt);
     }
 
     /**
@@ -152,6 +192,44 @@ contract HealthAccessRegistry {
     }
 
     /**
+     * @notice Logs an on-chain audit event whenever an authorized doctor/hospital views/decrypts a record
+     */
+    function logRecordView(address patient, bytes32 recordId) external {
+        if (!_records[patient][recordId].exists) revert RecordNotFound(recordId);
+
+        bool isOwner = (msg.sender == patient);
+        AccessPermission memory perm = _doctorPermissions[patient][msg.sender][recordId];
+        bool isPermitted = perm.isGranted && block.timestamp <= perm.expiresAt;
+
+        require(isOwner || isPermitted, "Unauthorized access to record metadata");
+
+        emit RecordViewed(patient, msg.sender, recordId, block.timestamp);
+    }
+
+    /**
+     * @notice Emergency "Break-Glass" Access for emergency responders when patient is incapacitated
+     * @dev Permanently logs a tamper-evident event to the on-chain audit trail
+     */
+    function breakGlassAccess(
+        address patient,
+        bytes32 recordId,
+        string calldata reason
+    ) external returns (
+        bytes32 commitmentHash,
+        string memory ipfsCid,
+        string memory category,
+        uint256 createdAt
+    ) {
+        if (!_records[patient][recordId].exists) revert RecordNotFound(recordId);
+        if (bytes(reason).length == 0) revert EmptyBreakGlassReason();
+
+        emit RecordBreakGlassAccessed(patient, msg.sender, recordId, reason, block.timestamp);
+
+        EncryptedRecord memory rec = _records[patient][recordId];
+        return (rec.recordCommitmentHash, rec.ipfsCid, rec.category, rec.createdAt);
+    }
+
+    /**
      * @notice Retrieves record metadata (accessible by patient or actively permitted doctor)
      */
     function getRecord(
@@ -173,6 +251,23 @@ contract HealthAccessRegistry {
 
         EncryptedRecord memory rec = _records[patient][recordId];
         return (rec.recordCommitmentHash, rec.ipfsCid, rec.category, rec.createdAt);
+    }
+
+    /**
+     * @notice Returns permission details for a specific record and viewer
+     */
+    function getPermission(
+        address patient,
+        address viewer,
+        bytes32 recordId
+    ) external view returns (
+        bool isGranted,
+        string memory role,
+        uint256 grantedAt,
+        uint256 expiresAt
+    ) {
+        AccessPermission memory perm = _doctorPermissions[patient][viewer][recordId];
+        return (perm.isGranted, perm.role, perm.grantedAt, perm.expiresAt);
     }
 
     /**
