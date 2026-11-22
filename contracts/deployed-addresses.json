@@ -1,11 +1,12 @@
 {
   "network": "hardhat",
   "chainId": "31337",
-  "deployedAt": "2026-11-22T18:49:05.185Z",
+  "deployedAt": "2026-11-22T19:53:23.396Z",
   "contracts": {
     "HealthAccessRegistry": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
-    "MockGroth16Verifier": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+    "Groth16Verifier": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
     "ZKPInsuranceSettlement": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0"
   },
-  "approvedHospitalMerkleRoot": "0x89e2cf9b9ad65646f9011933a39e76d05f322ea15d18d45e5eb4578bfa79fbc1"
+  "approvedHospitalMerkleRoot": "0x12b6dcec349f74e997d13b582eb6cdad2860e0c0cc3e9aa3676404e4edbb79be",
+  "approvedHospitalMerkleRootDecimal": "8464722192574004154307101905833932193053562928359214660920880496777686120894"
 }
