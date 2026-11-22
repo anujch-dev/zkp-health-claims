@@ -102,6 +102,36 @@ export function App() {
     addLog(`[Patient] Revoked doctor access for ${doctorAddress.slice(0, 8)}...`);
   };
 
+  const handleAddRecord = (newRecord: HealthRecord) => {
+    setRecords(prev => [newRecord, ...prev]);
+    const audit: AuditEvent = {
+      id: `aud-${Date.now()}`,
+      timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+      actorRole: 'patient',
+      actorAddress: PATIENT_ADDRESS,
+      action: 'Record Anchored',
+      details: `Anchored commitment ${newRecord.recordCommitmentHash.slice(0, 12)}... for ${newRecord.title}`,
+      badge: 'info'
+    };
+    setAuditLogs(prev => [audit, ...prev]);
+    addLog(`[Patient] Anchored SHA-256 commitment for '${newRecord.title}' into HealthAccessRegistry.sol`);
+  };
+
+  const handleResetDemo = () => {
+    setRecords(INITIAL_HEALTH_RECORDS);
+    setPolicy(INITIAL_POLICY);
+    setClaims(INITIAL_SETTLED_CLAIMS);
+    setAuditLogs(INITIAL_AUDIT_LOGS);
+    setDemoLogs([
+      "System Reset: Initial test vectors and ledger state restored.",
+      `HealthAccessRegistry deployed at ${REGISTRY_CONTRACT_ADDRESS.slice(0, 10)}...`,
+      `Groth16Verifier deployed at ${VERIFIER_CONTRACT_ADDRESS.slice(0, 10)}...`,
+      `ZKPInsuranceSettlement deployed at ${SETTLEMENT_CONTRACT_ADDRESS.slice(0, 10)}...`,
+      `Approved Hospital Merkle Root: ${HOSPITAL_MERKLE_ROOT.slice(0, 14)}...`,
+      "Ready for judge evaluation. Click 'Run Sample Valid Claim' to start."
+    ]);
+  };
+
   // Hospital Actions
   const handleClaimSubmitted = (submission: ClaimSubmission) => {
     setClaims(prev => [submission, ...prev]);
@@ -341,6 +371,7 @@ export function App() {
             onTestLimitExceeded={handleTestLimitExceeded}
             onTestTamperedProof={handleTestTamperedProof}
             onTestUnaccreditedHospital={handleTestUnaccreditedHospital}
+            onResetDemo={handleResetDemo}
             isProcessing={isProcessing}
             demoLogs={demoLogs}
           />
@@ -353,6 +384,7 @@ export function App() {
             auditLogs={auditLogs}
             onGrantAccess={handleGrantAccess}
             onRevokeAccess={handleRevokeAccess}
+            onAddRecord={handleAddRecord}
           />
         )}
 

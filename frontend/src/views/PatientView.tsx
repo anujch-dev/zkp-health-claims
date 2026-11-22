@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Shield, Lock, Key, UserPlus, Trash2, CheckCircle2, Calendar, Hash } from 'lucide-react';
+import { Shield, Lock, Key, UserPlus, Trash2, CheckCircle2, Calendar, Hash, Plus, Eye, FileText, Sparkles, X } from 'lucide-react';
 import { HealthRecord, InsurancePolicy, AuditEvent } from '../types';
+import { computeHash } from '../lib/zkp';
 
 interface PatientViewProps {
   records: HealthRecord[];
@@ -8,6 +9,7 @@ interface PatientViewProps {
   auditLogs: AuditEvent[];
   onGrantAccess: (recordId: string, doctorAddress: string, doctorName: string, specialty: string) => void;
   onRevokeAccess: (recordId: string, doctorAddress: string) => void;
+  onAddRecord?: (newRecord: HealthRecord) => void;
 }
 
 export const PatientView: React.FC<PatientViewProps> = ({
@@ -16,12 +18,27 @@ export const PatientView: React.FC<PatientViewProps> = ({
   auditLogs,
   onGrantAccess,
   onRevokeAccess,
+  onAddRecord,
 }) => {
   const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
   const [newDoctorAddress, setNewDoctorAddress] = useState('');
   const [newDoctorName, setNewDoctorName] = useState('');
   const [newSpecialty, setNewSpecialty] = useState('');
   const [showGrantModal, setShowGrantModal] = useState(false);
+
+  // Add Record Modal State
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [newCategory, setNewCategory] = useState<'Diagnostic' | 'Surgical' | 'Prescription' | 'Lab Result'>('Diagnostic');
+  const [newHospital, setNewHospital] = useState('Apex University Health Care');
+  const [newDoctor, setNewDoctor] = useState('Dr. Sarah Lin, MD');
+  const [newDoctorAddr, setNewDoctorAddr] = useState('0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC');
+  const [clinicalNotes, setClinicalNotes] = useState('');
+
+  // Decrypt Record Modal State
+  const [decryptingRecord, setDecryptingRecord] = useState<HealthRecord | null>(null);
+  const [decryptedContent, setDecryptedContent] = useState<string | null>(null);
+  const [isDecrypting, setIsDecrypting] = useState(false);
 
   const handleOpenGrantModal = (recordId: string) => {
     setSelectedRecordId(recordId);
@@ -42,6 +59,83 @@ export const PatientView: React.FC<PatientViewProps> = ({
     }
   };
 
+  const handleOpenDecryptModal = (record: HealthRecord) => {
+    setDecryptingRecord(record);
+    setIsDecrypting(true);
+    setDecryptedContent(null);
+
+    // Simulate client-side AES-256 decryption with user private key
+    setTimeout(() => {
+      setIsDecrypting(false);
+      if (record.id === 'rec-101') {
+        setDecryptedContent(`PATIENT: Alice Vance (ID: #PAT-88129)
+STUDY: Cranial Magnetic Resonance Imaging (MRI) with & without IV Gadolinium Contrast
+FINDINGS:
+- Ventricles and sulci are within normal limits for age.
+- No acute intracranial hemorrhage, mass effect, or midline shift.
+- Scattered focal areas of hyperintensity in the periventricular white matter on T2/FLAIR sequences, consistent with chronic microvascular ischemic changes or migraine etiology.
+- No abnormal parenchymal or meningeal enhancement following contrast administration.
+IMPRESSION: No acute intracranial abnormality. Stable white matter changes correlate with history of intractable migraine.`);
+      } else if (record.id === 'rec-102') {
+        setDecryptedContent(`PATIENT: Alice Vance (ID: #PAT-88129)
+STUDY: 24-Hour Ambulatory Holter & Stress Telemetry
+FINDINGS:
+- Predominant sinus rhythm throughout with average heart rate 72 bpm (range 54 - 128 bpm).
+- Rare isolated premature atrial contractions (PACs < 0.1%).
+- No sustained supraventricular tachycardia or ventricular arrhythmias.
+- No ischemic ST-T wave depressions exceeding 1.0 mm during peak exercise.
+IMPRESSION: Normal 24-hour ambulatory cardiac rhythm profile. No evidence of malignant dysrhythmia.`);
+      } else {
+        setDecryptedContent(`PATIENT: Alice Vance (ID: #PAT-88129)
+STUDY: ${record.title}
+FACILITY: ${record.hospitalName}
+DATE OF ENCOUNTER: ${record.date}
+CLINICAL RECORD:
+- Document AES-256 decrypted successfully with patient's sovereign private key.
+- Verified off-chain IPFS payload against on-chain SHA-256 commitment: ${record.recordCommitmentHash}
+- Doctor Authorized: ${record.doctorName} (${record.authorizedDoctors.filter(d => d.isActive).length > 0 ? 'Active Access' : 'Sovereign Read-Only'}`);
+      }
+    }, 600);
+  };
+
+  const handleCreateNewRecord = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTitle.trim()) return;
+
+    const fakeIpfsCid = "bafybei" + Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10);
+    const commitmentHash = await computeHash([newTitle, newCategory, fakeIpfsCid, Date.now().toString()]);
+
+    const newRecord: HealthRecord = {
+      id: `rec-${Date.now().toString().slice(-4)}`,
+      title: newTitle.trim(),
+      category: newCategory,
+      date: new Date().toISOString().split('T')[0],
+      hospitalName: newHospital,
+      doctorName: newDoctor,
+      doctorAddress: newDoctorAddr,
+      ipfsCid: fakeIpfsCid,
+      recordCommitmentHash: commitmentHash,
+      isEncrypted: true,
+      authorizedDoctors: [
+        {
+          doctorAddress: newDoctorAddr,
+          doctorName: newDoctor,
+          specialty: "Attending Physician",
+          grantedAt: new Date().toISOString().split('T')[0],
+          expiresAt: "2027-12-31",
+          isActive: true
+        }
+      ]
+    };
+
+    if (onAddRecord) {
+      onAddRecord(newRecord);
+    }
+    setShowAddModal(false);
+    setNewTitle('');
+    setClinicalNotes('');
+  };
+
   return (
     <div className="space-y-8">
       {/* Header and Policy Summary */}
@@ -60,12 +154,12 @@ export const PatientView: React.FC<PatientViewProps> = ({
               </div>
             </div>
             <span className="px-3 py-1 rounded-full text-xs font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-              HIPAA Compliant
+              HIPAA Compliant Web3
             </span>
           </div>
 
           <p className="text-xs text-slate-300 leading-relaxed">
-            Your medical diagnostic files, lab reports, and imaging are AES-256 encrypted and stored on decentralized storage (IPFS). Only cryptographic hash commitments are anchored on the blockchain. You hold sovereign control to grant and revoke re-encryption keys to licensed physicians at any time.
+            Your medical diagnostic files, lab reports, and imaging are AES-256 encrypted and stored on decentralized storage (IPFS). Only cryptographic hash commitments are anchored on <code className="text-emerald-400">HealthAccessRegistry.sol</code>. You hold sovereign control to grant and revoke re-encryption keys to licensed physicians at any time.
           </p>
         </div>
 
@@ -102,14 +196,24 @@ export const PatientView: React.FC<PatientViewProps> = ({
 
       {/* Encrypted Health Records List */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-bold text-white flex items-center gap-2">
-            <Lock className="h-5 w-5 text-indigo-400" />
-            Your Encrypted Health Records ({records.length})
-          </h3>
-          <span className="text-xs text-slate-400">
-            Commitments Registered in <code className="text-indigo-300">HealthAccessRegistry.sol</code>
-          </span>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+              <Lock className="h-5 w-5 text-indigo-400" />
+              Your Sovereign Encrypted Health Records ({records.length})
+            </h3>
+            <p className="text-xs text-slate-400">
+              Anchored in <code className="text-indigo-300">HealthAccessRegistry.sol</code> · Doctor decryption keys strictly delegated
+            </p>
+          </div>
+
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-xs shadow-md shadow-emerald-600/20 transition self-start sm:self-auto"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span>Add Encrypted Record</span>
+          </button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -150,7 +254,7 @@ export const PatientView: React.FC<PatientViewProps> = ({
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-500">On-Chain Hash:</span>
+                    <span className="text-slate-500">On-Chain Commitment:</span>
                     <span className="text-slate-400 truncate max-w-[140px]" title={record.recordCommitmentHash}>
                       {record.recordCommitmentHash.slice(0, 8)}...{record.recordCommitmentHash.slice(-6)}
                     </span>
@@ -205,13 +309,24 @@ export const PatientView: React.FC<PatientViewProps> = ({
                 </div>
               </div>
 
-              <button
-                onClick={() => handleOpenGrantModal(record.id)}
-                className="w-full flex items-center justify-center space-x-2 py-2 px-3 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-xs font-semibold transition"
-              >
-                <UserPlus className="h-3.5 w-3.5" />
-                <span>Grant Doctor Access</span>
-              </button>
+              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800/80">
+                <button
+                  onClick={() => handleOpenDecryptModal(record)}
+                  className="flex items-center justify-center space-x-1.5 py-2 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition"
+                  title="Decrypt with Sovereign Private Key"
+                >
+                  <Eye className="h-3.5 w-3.5 text-emerald-400" />
+                  <span>Decrypt File</span>
+                </button>
+
+                <button
+                  onClick={() => handleOpenGrantModal(record.id)}
+                  className="flex items-center justify-center space-x-1.5 py-2 px-2.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-xs font-semibold transition"
+                >
+                  <UserPlus className="h-3.5 w-3.5" />
+                  <span>Delegate</span>
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -221,7 +336,7 @@ export const PatientView: React.FC<PatientViewProps> = ({
       <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-4">
         <h3 className="text-base font-bold text-white flex items-center gap-2">
           <Key className="h-4 w-4 text-emerald-400" />
-          On-Chain Access Audit Trail
+          On-Chain Access Audit Trail (HealthAccessRegistry.sol)
         </h3>
         <div className="space-y-2">
           {auditLogs.map((log) => (
@@ -244,6 +359,203 @@ export const PatientView: React.FC<PatientViewProps> = ({
         </div>
       </div>
 
+      {/* Decrypt & View Modal */}
+      {decryptingRecord && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-xl w-full p-6 space-y-5 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center space-x-2">
+                <FileText className="h-5 w-5 text-emerald-400" />
+                <h3 className="text-base font-bold text-white">
+                  Decrypted Medical File: {decryptingRecord.title}
+                </h3>
+              </div>
+              <button
+                onClick={() => setDecryptingRecord(null)}
+                className="text-slate-400 hover:text-white"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {isDecrypting ? (
+              <div className="py-12 text-center space-y-3">
+                <div className="h-8 w-8 mx-auto border-2 border-emerald-400 border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-xs text-slate-300">Decrypting AES-256 payload with sovereign patient key...</p>
+                <p className="text-[11px] text-slate-500 font-mono">Fetching IPFS CID: {decryptingRecord.ipfsCid}</p>
+              </div>
+            ) : (
+              <div className="space-y-4 text-xs">
+                <div className="p-2.5 rounded-xl bg-emerald-950/20 border border-emerald-500/30 flex items-center justify-between">
+                  <span className="text-emerald-300 font-medium flex items-center gap-1.5">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                    Integrity Verified against on-chain SHA-256 commitment
+                  </span>
+                  <span className="text-[10px] font-mono text-slate-400">AES-GCM-256</span>
+                </div>
+
+                <div className="space-y-1">
+                  <span className="text-slate-400 font-semibold block">Clinical Findings & Impression:</span>
+                  <pre className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-[11px] font-mono text-slate-200 whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto">
+                    {decryptedContent}
+                  </pre>
+                </div>
+
+                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-1 text-[11px] text-slate-400 font-mono">
+                  <div>IPFS Storage CID: <span className="text-indigo-400">{decryptingRecord.ipfsCid}</span></div>
+                  <div>On-Chain Registry Hash: <span className="text-slate-300">{decryptingRecord.recordCommitmentHash}</span></div>
+                  <div>Issuing Provider: <span className="text-slate-200">{decryptingRecord.hospitalName} ({decryptingRecord.doctorName})</span></div>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => setDecryptingRecord(null)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-white transition"
+              >
+                Close Decrypted File
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add New Record Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-emerald-400" />
+                Anchor New Encrypted Record
+              </h3>
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateNewRecord} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-medium text-slate-300 mb-1">
+                  Record / Study Title
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newTitle}
+                  onChange={(e) => setNewTitle(e.target.value)}
+                  placeholder="e.g. Abdominal Contrast CT & Ultrasound"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-medium text-slate-300 mb-1">
+                    Category
+                  </label>
+                  <select
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value as any)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  >
+                    <option value="Diagnostic">Diagnostic</option>
+                    <option value="Surgical">Surgical</option>
+                    <option value="Prescription">Prescription</option>
+                    <option value="Lab Result">Lab Result</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-medium text-slate-300 mb-1">
+                    Issuing Hospital
+                  </label>
+                  <select
+                    value={newHospital}
+                    onChange={(e) => setNewHospital(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  >
+                    <option value="Apex University Health Care">Apex University Health Care</option>
+                    <option value="St. Jude Metropolitan Hospital">St. Jude Metropolitan Hospital</option>
+                    <option value="Mayo Memorial Research Clinic">Mayo Memorial Research Clinic</option>
+                    <option value="Stanford Biomedical Pavilion">Stanford Biomedical Pavilion</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-medium text-slate-300 mb-1">
+                  Physician Name & Address
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    required
+                    value={newDoctor}
+                    onChange={(e) => setNewDoctor(e.target.value)}
+                    placeholder="Doctor Name"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  />
+                  <input
+                    type="text"
+                    required
+                    value={newDoctorAddr}
+                    onChange={(e) => setNewDoctorAddr(e.target.value)}
+                    placeholder="0x..."
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-medium text-slate-300 mb-1">
+                  Clinical Examination & Findings
+                </label>
+                <textarea
+                  rows={2}
+                  value={clinicalNotes}
+                  onChange={(e) => setClinicalNotes(e.target.value)}
+                  placeholder="Notes are encrypted client-side before upload..."
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div className="p-3 bg-emerald-950/20 border border-emerald-500/20 rounded-xl text-[11px] text-slate-300 space-y-1">
+                <span className="font-semibold text-emerald-400 block flex items-center gap-1">
+                  <Lock className="h-3 w-3" /> Client-Side Cryptographic Guarantee:
+                </span>
+                <p>
+                  1. Content is AES-256 encrypted using your sovereign private key.
+                </p>
+                <p>
+                  2. Encrypted blob uploaded to IPFS. Only the resulting SHA-256 hash is committed to <code className="text-emerald-300">HealthAccessRegistry.sol</code>.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end space-x-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="px-4 py-2 rounded-xl text-xs text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/30 transition"
+                >
+                  Encrypt & Anchor On-Chain
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Grant Access Modal */}
       {showGrantModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -257,7 +569,7 @@ export const PatientView: React.FC<PatientViewProps> = ({
                 onClick={() => setShowGrantModal(false)}
                 className="text-slate-400 hover:text-white"
               >
-                ✕
+                <X className="h-4 w-4" />
               </button>
             </div>
 

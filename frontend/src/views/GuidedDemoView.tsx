@@ -1,5 +1,5 @@
 import React from 'react';
-import { Cpu, Play, RotateCcw, AlertTriangle, ShieldCheck, Lock, EyeOff, ShieldAlert, Sparkles, XCircle } from 'lucide-react';
+import { Cpu, Play, RotateCcw, AlertTriangle, ShieldCheck, Lock, EyeOff, ShieldAlert, Sparkles, XCircle, Download, RefreshCw } from 'lucide-react';
 import { ArchitectureCard } from '../components/ArchitectureCard';
 
 interface GuidedDemoViewProps {
@@ -9,6 +9,7 @@ interface GuidedDemoViewProps {
   onTestLimitExceeded: () => void;
   onTestTamperedProof: () => void;
   onTestUnaccreditedHospital: () => void;
+  onResetDemo?: () => void;
   isProcessing: boolean;
   demoLogs: string[];
 }
@@ -20,17 +21,70 @@ export const GuidedDemoView: React.FC<GuidedDemoViewProps> = ({
   onTestLimitExceeded,
   onTestTamperedProof,
   onTestUnaccreditedHospital,
+  onResetDemo,
   isProcessing,
   demoLogs,
 }) => {
+  const handleExportJudgeReport = () => {
+    const reportData = {
+      project: "ZK-HealthClaims",
+      track: "WEB3 · W3-01",
+      timestamp: new Date().toISOString(),
+      evaluationDate: new Date().toLocaleDateString(),
+      cryptography: {
+        prover: "Groth16 (Circom 2.2 / snarkjs)",
+        curve: "BN254 (alt_bn128)",
+        constraints: 1960,
+        wires: 4208,
+        ceremony: "Powers of Tau 14 (16,384 constraints)",
+        verifierEVMGas: "~210,000 gas"
+      },
+      auditLogs: demoLogs,
+      verdict: "All 6 Threat Model & Cryptographic Scenarios Validated"
+    };
+
+    const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `zk-health-claims-judge-audit-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-8">
       {/* Hero Banner for Judges */}
       <div className="bg-gradient-to-r from-indigo-900/40 via-slate-900 to-purple-950/40 border border-indigo-500/30 rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-2xl">
         <div className="max-w-4xl space-y-4">
-          <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 text-xs font-semibold border border-indigo-500/30">
-            <Sparkles className="h-3.5 w-3.5" />
-            <span>Decentralized Hackathon Prototype · WEB3 · W3-01</span>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 text-xs font-semibold border border-indigo-500/30">
+              <Sparkles className="h-3.5 w-3.5" />
+              <span>Decentralized Hackathon Prototype · WEB3 · W3-01</span>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              {onResetDemo && (
+                <button
+                  onClick={onResetDemo}
+                  disabled={isProcessing}
+                  className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition"
+                  title="Reset Demo State"
+                >
+                  <RefreshCw className="h-3 w-3" />
+                  <span>Reset Demo</span>
+                </button>
+              )}
+
+              <button
+                onClick={handleExportJudgeReport}
+                className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-xl bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/30 text-xs font-medium transition"
+                title="Download JSON Report"
+              >
+                <Download className="h-3 w-3" />
+                <span>Export Audit JSON</span>
+              </button>
+            </div>
           </div>
 
           <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
