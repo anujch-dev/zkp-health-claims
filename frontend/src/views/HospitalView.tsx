@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Building2, ShieldCheck, Cpu, EyeOff, Lock, CheckCircle2, AlertTriangle, FileCheck, RefreshCw, Network, Copy, Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { Building2, ShieldCheck, Cpu, EyeOff, Lock, CheckCircle2, AlertTriangle, FileCheck, RefreshCw, Network, Copy, Check, ChevronDown, ChevronUp, ShieldAlert, RotateCcw, XCircle } from 'lucide-react';
 import { AccreditedHospital, InsurancePolicy, ClaimSubmission, ClaimPrivateInputs } from '../types';
 import { ACCREDITED_HOSPITALS, HOSPITAL_MERKLE_ROOT } from '../fixtures/mockData';
 import { generateHealthClaimProof, CircuitValidationResult } from '../lib/zkp';
@@ -8,12 +8,18 @@ import { CERTIFIED_GROTH16_CIRCUIT } from '../fixtures/groth16Artifacts';
 interface HospitalViewProps {
   policy: InsurancePolicy;
   onClaimSubmitted: (submission: ClaimSubmission) => void;
+  onTestReplayAttack?: () => void;
+  onTestUnaccreditedHospital?: () => void;
+  onTestLimitExceeded?: () => void;
   isProcessing: boolean;
 }
 
 export const HospitalView: React.FC<HospitalViewProps> = ({
   policy,
   onClaimSubmitted,
+  onTestReplayAttack,
+  onTestUnaccreditedHospital,
+  onTestLimitExceeded,
   isProcessing,
 }) => {
   const [selectedHospital, setSelectedHospital] = useState<AccreditedHospital>(ACCREDITED_HOSPITALS[0]);
@@ -516,6 +522,91 @@ export const HospitalView: React.FC<HospitalViewProps> = ({
               <span>Submit Proof to ZKPInsuranceSettlement.sol</span>
             </button>
           )}
+        </div>
+      </div>
+
+      {/* "Try to Hack Me" Zero-Knowledge Attack Simulator */}
+      <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+          <div className="flex items-center space-x-2">
+            <ShieldAlert className="h-5 w-5 text-amber-400" />
+            <h3 className="text-base font-bold text-white">"Try to Hack Me" Attack Simulator</h3>
+          </div>
+          <span className="text-[11px] font-mono px-2.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+            TEST LIVE CRYPTOGRAPHIC GUARDS
+          </span>
+        </div>
+
+        <p className="text-xs text-slate-300 leading-relaxed">
+          Simulate real cryptographic and smart contract exploit attempts to verify that the Zero-Knowledge system prevents double-spending, unaccredited providers, and policy limit fraud:
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3 flex flex-col justify-between">
+            <div className="space-y-1.5">
+              <div className="flex items-center space-x-2 text-amber-400 font-bold text-xs">
+                <RotateCcw className="h-4 w-4" />
+                <span>1. Replay Attack</span>
+              </div>
+              <p className="text-[11px] text-slate-400">
+                Attempt to re-submit an already settled claim nullifier to collect a duplicate reimbursement payout.
+              </p>
+              <div className="text-[10px] font-mono text-slate-500 bg-slate-900/60 p-2 rounded">
+                Expected: Revert with ClaimAlreadyNullified()
+              </div>
+            </div>
+            <button
+              onClick={onTestReplayAttack}
+              disabled={isProcessing}
+              className="w-full py-2 px-3 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-semibold transition"
+            >
+              Simulate Replay Attack
+            </button>
+          </div>
+
+          <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3 flex flex-col justify-between">
+            <div className="space-y-1.5">
+              <div className="flex items-center space-x-2 text-purple-400 font-bold text-xs">
+                <Lock className="h-4 w-4" />
+                <span>2. Rogue Hospital Attack</span>
+              </div>
+              <p className="text-[11px] text-slate-400">
+                Attempt to submit a claim from an unaccredited clinic whose leaf is not in the approved Merkle tree.
+              </p>
+              <div className="text-[10px] font-mono text-slate-500 bg-slate-900/60 p-2 rounded">
+                Expected: Circom MerkleTreeInclusion fails
+              </div>
+            </div>
+            <button
+              onClick={onTestUnaccreditedHospital}
+              disabled={isProcessing}
+              className="w-full py-2 px-3 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/40 text-xs font-semibold transition"
+            >
+              Simulate Rogue Provider
+            </button>
+          </div>
+
+          <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3 flex flex-col justify-between">
+            <div className="space-y-1.5">
+              <div className="flex items-center space-x-2 text-rose-400 font-bold text-xs">
+                <XCircle className="h-4 w-4" />
+                <span>3. Over-Limit Fraud ($75k)</span>
+              </div>
+              <p className="text-[11px] text-slate-400">
+                Attempt to bill $75,000 for an experimental treatment against a remaining policy coverage of $50,000.
+              </p>
+              <div className="text-[10px] font-mono text-slate-500 bg-slate-900/60 p-2 rounded">
+                Expected: LessEqThan constraint halts prover
+              </div>
+            </div>
+            <button
+              onClick={onTestLimitExceeded}
+              disabled={isProcessing}
+              className="w-full py-2 px-3 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-semibold transition"
+            >
+              Simulate Over-Limit Claim
+            </button>
+          </div>
         </div>
       </div>
     </div>
