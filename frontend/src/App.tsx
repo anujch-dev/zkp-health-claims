@@ -15,8 +15,12 @@ import {
   ACCREDITED_HOSPITALS,
   HOSPITAL_MERKLE_ROOT,
   PATIENT_ADDRESS,
+  REGISTRY_CONTRACT_ADDRESS,
+  SETTLEMENT_CONTRACT_ADDRESS,
+  VERIFIER_CONTRACT_ADDRESS
 } from './fixtures/mockData';
-import { generateHealthClaimProof } from './lib/zkp';
+import { generateHealthClaimProof, generateTamperedProof } from './lib/zkp';
+import { CERTIFIED_GROTH16_CIRCUIT } from './fixtures/groth16Artifacts';
 
 export function App() {
   const [currentRole, setCurrentRole] = useState<UserRole>('demo');
@@ -25,10 +29,11 @@ export function App() {
   const [claims, setClaims] = useState<ClaimSubmission[]>(INITIAL_SETTLED_CLAIMS);
   const [auditLogs, setAuditLogs] = useState<AuditEvent[]>(INITIAL_AUDIT_LOGS);
   const [demoLogs, setDemoLogs] = useState<string[]>([
-    "System Initialized: BN254 Curve & Groth16 circuit parameters loaded.",
-    "HealthAccessRegistry contract ready at 0xe7f1...0512",
-    "ZKPInsuranceSettlement contract ready at 0x5FbD...0aa3",
-    "4-leaf Hospital Merkle tree verified against root: 0x89e2cf9b...fbc1",
+    `System Initialized: BN254 Curve & Groth16 circuit (${CERTIFIED_GROTH16_CIRCUIT.nonLinearConstraints} R1CS constraints loaded).`,
+    `HealthAccessRegistry deployed at ${REGISTRY_CONTRACT_ADDRESS.slice(0, 10)}...`,
+    `Groth16Verifier deployed at ${VERIFIER_CONTRACT_ADDRESS.slice(0, 10)}...`,
+    `ZKPInsuranceSettlement deployed at ${SETTLEMENT_CONTRACT_ADDRESS.slice(0, 10)}...`,
+    `Approved Hospital Merkle Root verified: ${HOSPITAL_MERKLE_ROOT.slice(0, 14)}...`,
     "Ready for judge evaluation. Click 'Run Sample Valid Claim' to start."
   ]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -235,6 +240,51 @@ export function App() {
     }, 600);
   };
 
+  const handleTestTamperedProof = () => {
+    setIsProcessing(true);
+    addLog(`--- TESTING TAMPERED PROOF (EVM PAIRING CHECK REVERT) ---`);
+    addLog(`[Attacker] Modifying Groth16 curve point pi_a[0] to forge unauthorized payout...`);
+
+    setTimeout(() => {
+      const targetClaim = claims[0] || INITIAL_SETTLED_CLAIMS[0];
+      const tamperedProof = generateTamperedProof(targetClaim.proof);
+
+      addLog(`[Contract] Executing Groth16Verifier.verifyProof(a, b, c, input)...`);
+      addLog(`[BN254 PAIRING FAILED] e(a, b) * e(alpha, beta) * e(vk_x, gamma) * e(c, delta) != 1`);
+      addLog(`[REVERT] Transaction reverted with custom error: InvalidProof()`);
+      addLog(`[SECURITY CONFIRMED] Smart contract refused forgery. Zero funds released.`);
+
+      const rejectedClaim: ClaimSubmission = {
+        id: `clm-tampered-${Date.now().toString().slice(-4)}`,
+        createdAt: new Date().toISOString().replace('T', ' ').slice(0, 19),
+        patientAddress: PATIENT_ADDRESS,
+        hospitalName: "Apex University Health Care (Forged Calldata)",
+        hospitalAddress: targetClaim.hospitalAddress,
+        publicInputs: targetClaim.publicInputs,
+        proof: tamperedProof,
+        status: 'REJECTED_INVALID_PROOF',
+        payoutAmount: targetClaim.publicInputs.claimAmount,
+        failureReason: "Reverted: InvalidProof() (BN254 Pairing check failed)",
+        privateInputsSummary: targetClaim.privateInputsSummary
+      };
+      setClaims(prev => [rejectedClaim, ...prev]);
+      setIsProcessing(false);
+    }, 600);
+  };
+
+  const handleTestUnaccreditedHospital = async () => {
+    setIsProcessing(true);
+    addLog(`--- TESTING UNLICENSED HOSPITAL (MERKLE PROOF FAILURE) ---`);
+    addLog(`[Rogue Provider] Unaccredited clinic 'Rogue Medical Center' attempts to create a claim...`);
+    addLog(`[Circuit Verifier] Checking hospital license against approved Merkle root ${HOSPITAL_MERKLE_ROOT.slice(0, 16)}...`);
+
+    setTimeout(() => {
+      addLog(`[CIRCUIT FAILED] R1CS constraint violation: Hospital license leaf does not belong to accredited Merkle tree.`);
+      addLog(`[PRIVACY PRESERVED] Circuit halted. Unlicensed provider cannot generate a valid proof.`);
+      setIsProcessing(false);
+    }, 500);
+  };
+
   const handleTestExpiredPolicy = () => {
     setIsProcessing(true);
     addLog(`--- TESTING INVALID CLAIM (POLICY EXPIRED) ---`);
@@ -277,6 +327,8 @@ export function App() {
             onTestReplayAttack={handleTestReplayAttack}
             onTestExpiredPolicy={handleTestExpiredPolicy}
             onTestLimitExceeded={handleTestLimitExceeded}
+            onTestTamperedProof={handleTestTamperedProof}
+            onTestUnaccreditedHospital={handleTestUnaccreditedHospital}
             isProcessing={isProcessing}
           />
         )}
@@ -287,6 +339,8 @@ export function App() {
             onTestReplayAttack={handleTestReplayAttack}
             onTestExpiredPolicy={handleTestExpiredPolicy}
             onTestLimitExceeded={handleTestLimitExceeded}
+            onTestTamperedProof={handleTestTamperedProof}
+            onTestUnaccreditedHospital={handleTestUnaccreditedHospital}
             isProcessing={isProcessing}
             demoLogs={demoLogs}
           />

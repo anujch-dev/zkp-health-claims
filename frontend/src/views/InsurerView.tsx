@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { ShieldCheck, AlertOctagon, CheckCircle2, DollarSign, Eye, Hash, ShieldAlert, Cpu } from 'lucide-react';
+import { ShieldCheck, AlertOctagon, CheckCircle2, DollarSign, Eye, Hash, ShieldAlert, Cpu, Copy, Check } from 'lucide-react';
 import { ClaimSubmission, InsurancePolicy } from '../types';
 import { ArchitectureCard } from '../components/ArchitectureCard';
+import { CERTIFIED_GROTH16_CIRCUIT } from '../fixtures/groth16Artifacts';
 
 interface InsurerViewProps {
   claims: ClaimSubmission[];
@@ -17,6 +18,13 @@ export const InsurerView: React.FC<InsurerViewProps> = ({
   isProcessing,
 }) => {
   const [selectedProofClaim, setSelectedProofClaim] = useState<ClaimSubmission | null>(null);
+  const [copiedCalldata, setCopiedCalldata] = useState(false);
+
+  const handleCopyCalldata = (calldata: string) => {
+    navigator.clipboard.writeText(calldata);
+    setCopiedCalldata(true);
+    setTimeout(() => setCopiedCalldata(false), 2000);
+  };
 
   const totalSettledPayout = claims
     .filter(c => c.status === 'PAYOUT_SETTLED')
@@ -205,24 +213,57 @@ export const InsurerView: React.FC<InsurerViewProps> = ({
             </div>
 
             <div className="space-y-4 text-xs font-mono">
+              {/* Circuit & Prover Metadata */}
+              <div className="flex flex-wrap gap-2 text-[10px] bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                <span className="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-bold">
+                  {CERTIFIED_GROTH16_CIRCUIT.curve}
+                </span>
+                <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold">
+                  {CERTIFIED_GROTH16_CIRCUIT.proverProtocol}
+                </span>
+                <span className="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300">
+                  {CERTIFIED_GROTH16_CIRCUIT.nonLinearConstraints.toLocaleString()} Constraints
+                </span>
+                <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300">
+                  Gas: {CERTIFIED_GROTH16_CIRCUIT.gasVerificationCost}
+                </span>
+              </div>
+
+              {/* 5 Public Signals */}
               <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
-                <span className="text-slate-400 font-bold block">Public Signals (On-Chain Verification Parameters):</span>
-                <div className="space-y-1 text-slate-300">
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">[0] Hospital Merkle Root:</span>
-                    <span className="text-indigo-400 truncate max-w-[280px]">{selectedProofClaim.publicInputs.hospitalMerkleRoot}</span>
+                <span className="text-slate-400 font-bold block">
+                  Public Signals ({CERTIFIED_GROTH16_CIRCUIT.publicSignalCount} Parameters Verified On-Chain):
+                </span>
+                <div className="space-y-1.5 text-slate-300">
+                  <div className="flex justify-between items-center py-0.5 border-b border-slate-900">
+                    <span className="text-slate-500">[0] approvedHospitalRoot:</span>
+                    <span className="text-indigo-400 font-mono text-[11px] truncate max-w-[280px]" title={selectedProofClaim.publicInputs.hospitalMerkleRoot}>
+                      {selectedProofClaim.publicInputs.hospitalMerkleRoot}
+                    </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">[1] Policy Commitment:</span>
-                    <span className="text-slate-300 truncate max-w-[280px]">{selectedProofClaim.publicInputs.policyCommitment}</span>
+                  <div className="flex justify-between items-center py-0.5 border-b border-slate-900">
+                    <span className="text-slate-500">[1] policyCommitment:</span>
+                    <span className="text-slate-300 font-mono text-[11px] truncate max-w-[280px]" title={selectedProofClaim.publicInputs.policyCommitment}>
+                      {selectedProofClaim.publicInputs.policyCommitment}
+                    </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">[2] Claim Nullifier:</span>
-                    <span className="text-amber-400 font-bold truncate max-w-[280px]">{selectedProofClaim.publicInputs.claimNullifier}</span>
+                  <div className="flex justify-between items-center py-0.5 border-b border-slate-900">
+                    <span className="text-slate-500">[2] claimAmount:</span>
+                    <span className="text-emerald-400 font-bold font-mono text-[11px]">
+                      ${selectedProofClaim.publicInputs.claimAmount.toLocaleString()} USDC
+                    </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">[3] Claim Amount:</span>
-                    <span className="text-emerald-400 font-bold">${selectedProofClaim.publicInputs.claimAmount.toLocaleString()}</span>
+                  <div className="flex justify-between items-center py-0.5 border-b border-slate-900">
+                    <span className="text-slate-500">[3] claimDate (Unix):</span>
+                    <span className="text-blue-300 font-mono text-[11px]">
+                      {selectedProofClaim.publicInputs.claimTimestamp} ({new Date(selectedProofClaim.publicInputs.claimTimestamp * 1000).toLocaleDateString()})
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center py-0.5">
+                    <span className="text-slate-500">[4] claimNullifier:</span>
+                    <span className="text-amber-400 font-bold font-mono text-[11px] truncate max-w-[280px]" title={selectedProofClaim.publicInputs.claimNullifier}>
+                      {selectedProofClaim.publicInputs.claimNullifier}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -243,11 +284,46 @@ export const InsurerView: React.FC<InsurerViewProps> = ({
                 </div>
               </div>
 
+              {/* Solidity Calldata with Copy Button */}
+              {selectedProofClaim.proof.solidityCalldata && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400 font-bold block">
+                      Solidity Verifier Calldata (EVM-ready):
+                    </span>
+                    <button
+                      onClick={() => handleCopyCalldata(selectedProofClaim.proof.solidityCalldata!)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/30 text-[11px] transition font-sans"
+                    >
+                      {copiedCalldata ? (
+                        <>
+                          <Check className="h-3 w-3 text-emerald-400" />
+                          <span className="text-emerald-300">Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-3 w-3" />
+                          <span>Copy Calldata</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <pre className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-[10px] text-indigo-300 font-mono overflow-x-auto max-h-24">
+                    {selectedProofClaim.proof.solidityCalldata}
+                  </pre>
+                </div>
+              )}
+
               {/* Raw Groth16 JSON */}
               <div className="space-y-1">
-                <span className="text-slate-400 font-bold block">Raw Groth16 Proof Points:</span>
-                <pre className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-[11px] text-slate-400 overflow-x-auto">
-                  {JSON.stringify(selectedProofClaim.proof, null, 2)}
+                <span className="text-slate-400 font-bold block">Raw Groth16 Curve Points (pi_a, pi_b, pi_c):</span>
+                <pre className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-[11px] text-slate-400 overflow-x-auto max-h-36">
+                  {JSON.stringify({
+                    pi_a: selectedProofClaim.proof.pi_a,
+                    pi_b: selectedProofClaim.proof.pi_b,
+                    pi_c: selectedProofClaim.proof.pi_c,
+                    publicSignals: selectedProofClaim.proof.publicSignals
+                  }, null, 2)}
                 </pre>
               </div>
             </div>

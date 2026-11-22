@@ -119,7 +119,8 @@ export const HospitalView: React.FC<HospitalViewProps> = ({
               }}
               className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
             >
-              {ACCREDITED_HOSPITALS.map((h) => (\n                <option key={h.id} value={h.id}>
+              {ACCREDITED_HOSPITALS.map((h) => (
+                <option key={h.id} value={h.id}>
                   {h.name} ({h.licenseNumber})
                 </option>
               ))}
