@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+vendor/
+target/
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+
+# Environment & Secrets
+.env
+.env.local
+*.pem
+*.key
+
+# Build outputs
+build/
+dist/
+out/
+artifacts/
+cache/
+
+# ZKP build files & keys (large/sensitive proving keys if generated)
+*.zkey
+*.ptau
+*.r1cs
+*.sym
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
