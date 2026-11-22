@@ -76,20 +76,23 @@ zkp-health-claims/
   - `MockGroth16Verifier.sol` & `IVerifier.sol`: Groth16 Snark interface and toggleable mock verifier.
   - Automated deployment script exporting deployed addresses.
   - **11/11 unit tests passing** with Hardhat covering happy path, replay attack prevention, and fraud checks.
-- [ ] **Slice 3 (ZKP Circuit & Cryptographic Wiring)**:
-  - Circom R1CS circuit (`claim_verification.circom`).
-  - Merkle inclusion, policy expiration, and limit boundary constraints.
-  - Verifier contract compilation & witness generation.
+- [x] **Slice 3 (ZKP Circuit & Cryptographic Wiring)**:
+  - Circom 2.2 R1CS circuit (`health_claim.circom` & `merkle_tree.circom`) with 1,960 non-linear constraints.
+  - Merkle inclusion (hospital licensing), active policy expiration (`claimDate <= policyExpiry`), coverage limits (`claimAmount <= maxCoverageLimit`), and procedure coverage set verification.
+  - Full Powers of Tau ceremony ($2^{14} = 16,384$ constraints) and SnarkJS Groth16 setup.
+  - Exported EVM-native `Groth16Verifier.sol` matching EVM pairing precompiles (BN254).
+  - Client-side witness generator (`health_claim.wasm`) with automated sample proof generation.
+  - **12/12 unit tests passing** including real Groth16 on-chain proof verification.
 - [ ] **Slice 4 (End-to-End Integration & Threat Model)**:
   - Connect ethers.js frontend with contracts and circuit verifier.
   - Visual proof inspector, failure state handling, and final submission walkthrough.
 
 ---
 
-## 🧪 Smart Contract Test Results (Slice 2)
+## 🧪 Smart Contract Test Results (Slice 2 & 3)
 
 ```text
-  Slice 2: Decentralized Health Records & ZKP Insurance Claims
+  Slice 2 & 3: Decentralized Health Records & ZKP Insurance Claims
     1. HealthAccessRegistry (Patient Privacy & Doctor Delegation)
       ✔ should allow a patient to register an encrypted record commitment
       ✔ should reject registering duplicate record ID
@@ -103,8 +106,10 @@ zkp-health-claims/
       ✔ INVALID ZK PROOF GUARD: should revert if the Snark verifier rejects the proof
       ✔ INSUFFICIENT ESCROW GUARD: should revert if claim amount exceeds contract liquidity
       ✔ ESCROW MANAGEMENT: insurer can fund and withdraw liquidity
+    3. Real Circom Groth16 Verifier On-Chain
+      ✔ should deploy Groth16Verifier.sol and verify a real Circom snarkjs proof on-chain (112ms)
 
-  11 passing (1s)
+  12 passing (3s)
 ```
 
 ### Running Contract Tests
@@ -119,6 +124,29 @@ npm test
 cd contracts
 npx hardhat run scripts/deploy.cjs
 ```
+
+---
+
+## ⚡ Zero-Knowledge Circuits Guide (Slice 3)
+
+### 1. Compile Circuit to R1CS & WebAssembly Witness
+```bash
+cd circuits
+npm install
+npm run compile
+```
+
+### 2. Run Powers of Tau & Groth16 Setup
+```bash
+npm run setup
+```
+Exports `Groth16Verifier.sol` directly to `contracts/src/Groth16Verifier.sol`.
+
+### 3. Generate Sample ZK Proof & Calldata
+```bash
+npm run prove
+```
+Generates Groth16 proof in ~1.7s and produces `calldata.json` ready for on-chain settlement.
 
 ---
 
