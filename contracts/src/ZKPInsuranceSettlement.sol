@@ -109,14 +109,15 @@ contract ZKPInsuranceSettlement {
     /**
      * @notice Verifies a zero-knowledge claim proof and executes immediate settlement
      * @dev Private clinical inputs (diagnosis, prescriptions, doctor notes) are completely hidden.
-     *      Only public inputs [merkleRoot, policyCommitment, claimNullifier, claimAmount] are evaluated.
+     *      Only public inputs [merkleRoot, policyCommitment, claimAmount, claimDate, claimNullifier] are evaluated.
      * @param a Groth16 proof point pi_a
      * @param b Groth16 proof point pi_b
      * @param c Groth16 proof point pi_c
      * @param hospitalMerkleRoot Merkle root proven inside circuit
      * @param policyCommitment Cryptographic commitment to the policy
-     * @param claimNullifier Unique deterministic nullifier Hash(policyCommitment, nonce, hospital, date)
+     * @param claimNullifier Unique deterministic nullifier Hash(patientSecret, policyId, claimId)
      * @param claimAmount Claim reimbursement amount to disburse
+     * @param claimDate Service timestamp
      * @param hospitalRecipient Address of the accredited hospital receiving payout
      */
     function submitAndSettleClaim(
@@ -127,6 +128,7 @@ contract ZKPInsuranceSettlement {
         bytes32 policyCommitment,
         bytes32 claimNullifier,
         uint256 claimAmount,
+        uint256 claimDate,
         address payable hospitalRecipient
     ) external returns (bool) {
         // 1. Replay Protection: Ensure nullifier hasn't been used before
@@ -149,12 +151,19 @@ contract ZKPInsuranceSettlement {
             revert InsufficientEscrowBalance(address(this).balance, claimAmount);
         }
 
-        // 5. Verify Groth16 Zero-Knowledge Proof
-        uint256[4] memory publicSignals = [
+        // 5. Verify Groth16 Zero-Knowledge Proof (BN254 curve)
+        // Public signals order matching circuits/health_claim.circom:
+        // [0] approvedHospitalRoot
+        // [1] policyCommitment
+        // [2] claimAmount
+        // [3] claimDate
+        // [4] claimNullifier
+        uint256[5] memory publicSignals = [
             uint256(hospitalMerkleRoot),
             uint256(policyCommitment),
-            uint256(claimNullifier),
-            claimAmount
+            claimAmount,
+            claimDate,
+            uint256(claimNullifier)
         ];
 
         bool isValidProof = verifier.verifyProof(a, b, c, publicSignals);

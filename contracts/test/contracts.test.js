@@ -1,7 +1,9 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
+const fs = require("fs");
+const path = require("path");
 
-describe("Slice 2: Decentralized Health Records & ZKP Insurance Claims", function () {
+describe("Slice 2 & 3: Decentralized Health Records & ZKP Insurance Claims", function () {
   let registry;
   let verifier;
   let settlement;
@@ -16,6 +18,7 @@ describe("Slice 2: Decentralized Health Records & ZKP Insurance Claims", functio
   const POLICY_COMMITMENT = "0x7a3f89d0b6728341ef92d5c310467ae584920bcf241851239aa827b5f90241ec";
   const CLAIM_NULLIFIER_1 = "0x582194cbe4019a2b8e4f16928e34091aef591204891285091285012984019284";
   const CLAIM_NULLIFIER_2 = "0x981249cbe4019a2b8e4f16928e34091aef591204891285091285012984019284";
+  const CLAIM_DATE = 1732320000;
 
   // Mock Groth16 proof points
   const DUMMY_PROOF_A = [1, 2];
@@ -140,6 +143,7 @@ describe("Slice 2: Decentralized Health Records & ZKP Insurance Claims", functio
         POLICY_COMMITMENT,
         CLAIM_NULLIFIER_1,
         claimAmount,
+        CLAIM_DATE,
         hospital.address
       );
       const receipt = await tx.wait();
@@ -171,6 +175,7 @@ describe("Slice 2: Decentralized Health Records & ZKP Insurance Claims", functio
         POLICY_COMMITMENT,
         CLAIM_NULLIFIER_1,
         claimAmount,
+        CLAIM_DATE,
         hospital.address
       );
 
@@ -185,6 +190,7 @@ describe("Slice 2: Decentralized Health Records & ZKP Insurance Claims", functio
           POLICY_COMMITMENT,
           CLAIM_NULLIFIER_1,
           claimAmount,
+          CLAIM_DATE,
           attacker.address
         );
       } catch (err) {
@@ -207,6 +213,7 @@ describe("Slice 2: Decentralized Health Records & ZKP Insurance Claims", functio
           POLICY_COMMITMENT,
           CLAIM_NULLIFIER_2,
           claimAmount,
+          CLAIM_DATE,
           hospital.address
         );
       } catch (err) {
@@ -230,6 +237,7 @@ describe("Slice 2: Decentralized Health Records & ZKP Insurance Claims", functio
           POLICY_COMMITMENT,
           CLAIM_NULLIFIER_2,
           claimAmount,
+          CLAIM_DATE,
           hospital.address
         );
       } catch (err) {
@@ -252,6 +260,7 @@ describe("Slice 2: Decentralized Health Records & ZKP Insurance Claims", functio
           POLICY_COMMITMENT,
           CLAIM_NULLIFIER_2,
           excessiveAmount,
+          CLAIM_DATE,
           hospital.address
         );
       } catch (err) {
@@ -279,6 +288,68 @@ describe("Slice 2: Decentralized Health Records & ZKP Insurance Claims", functio
         expect(err.message).to.include("OnlyInsurer");
       }
       expect(reverted).to.be.true;
+    });
+  });
+
+  describe("3. Real Circom Groth16 Verifier On-Chain", function () {
+    it("should deploy Groth16Verifier.sol and verify a real Circom snarkjs proof on-chain", async function () {
+      let calldataPath = path.resolve(__dirname, "..", "..", "circuits", "build", "calldata.json");
+      if (!fs.existsSync(calldataPath)) {
+        calldataPath = path.resolve(__dirname, "..", "..", "circuits", "fixtures", "sample_calldata.json");
+      }
+      if (!fs.existsSync(calldataPath)) {
+        this.skip();
+        return;
+      }
+
+      const { calldataStr } = JSON.parse(fs.readFileSync(calldataPath, "utf8"));
+      const parsedArgs = JSON.parse(`[${calldataStr}]`);
+      const [a, b, c, pubSignals] = parsedArgs;
+
+      // Deploy real Groth16Verifier exported by snarkjs from health_claim.circom
+      const Groth16Verifier = await ethers.getContractFactory("Groth16Verifier");
+      const realVerifier = await Groth16Verifier.deploy();
+      await realVerifier.waitForDeployment();
+
+      // Verify directly on the real verifier contract
+      const verified = await realVerifier.verifyProof(a, b, c, pubSignals);
+      expect(verified).to.be.true;
+
+      // Deploy settlement contract with real Groth16Verifier
+      const hospitalMerkleRootHex = pubSignals[0];
+      const policyCommitmentHex = pubSignals[1];
+      const claimAmount = BigInt(pubSignals[2]);
+      const claimDate = BigInt(pubSignals[3]);
+      const claimNullifierHex = pubSignals[4];
+
+      const RealSettlement = await ethers.getContractFactory("ZKPInsuranceSettlement");
+      const realSettlement = await RealSettlement.deploy(
+        await realVerifier.getAddress(),
+        hospitalMerkleRootHex,
+        { value: ethers.parseEther("10.0") }
+      );
+      await realSettlement.waitForDeployment();
+
+      // Settle claim on-chain with the real zero-knowledge proof!
+      const initialHospitalBal = await ethers.provider.getBalance(hospital.address);
+      const tx = await realSettlement.connect(hospital).submitAndSettleClaim(
+        a,
+        b,
+        c,
+        hospitalMerkleRootHex,
+        policyCommitmentHex,
+        claimNullifierHex,
+        claimAmount,
+        claimDate,
+        hospital.address
+      );
+      const receipt = await tx.wait();
+      expect(receipt.status).to.equal(1);
+
+      // Verify nullifier is marked as spent on-chain
+      expect(await realSettlement.isClaimNullified(claimNullifierHex)).to.be.true;
+      expect(await realSettlement.totalSettledClaims()).to.equal(1n);
+      expect(await realSettlement.totalSettledPayout()).to.equal(claimAmount);
     });
   });
 });
