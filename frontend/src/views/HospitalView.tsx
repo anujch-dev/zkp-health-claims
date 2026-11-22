@@ -119,8 +119,7 @@ export const HospitalView: React.FC<HospitalViewProps> = ({
               }}
               className="bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-blue-500"
             >
-              {ACCREDITED_HOSPITALS.map((h) => (
-                <option key={h.id} value={h.id}>
+              {ACCREDITED_HOSPITALS.map((h) => (\n                <option key={h.id} value={h.id}>
                   {h.name} ({h.licenseNumber})
                 </option>
               ))}
@@ -381,6 +380,10 @@ export const HospitalView: React.FC<HospitalViewProps> = ({
                     <div className="flex justify-between">
                       <span className="text-slate-500">Claim Amount:</span>
                       <span className="text-emerald-400 font-bold">${circuitResult.publicInputs.claimAmount.toLocaleString()} USDC</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Claim Date (Timestamp):</span>
+                      <span className="text-blue-400 font-mono">{new Date(circuitResult.publicInputs.claimTimestamp * 1000).toLocaleDateString()} ({circuitResult.publicInputs.claimTimestamp})</span>
                     </div>
                   </div>
                 </div>

@@ -151,9 +151,9 @@ export async function generateHealthClaimProof(
     publicSignals: [
       publicInputs.hospitalMerkleRoot,
       publicInputs.policyCommitment,
-      publicInputs.claimNullifier,
       publicInputs.claimAmount.toString(),
-      publicInputs.claimTimestamp.toString()
+      publicInputs.claimTimestamp.toString(),
+      publicInputs.claimNullifier
     ],
     generationDurationMs: Math.round(performance.now() - startTime + 380),
     verifiedOnChain: false
