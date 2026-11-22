@@ -6,6 +6,7 @@ import { PatientView } from './views/PatientView';
 import { HospitalView } from './views/HospitalView';
 import { InsurerView } from './views/InsurerView';
 import { GuidedDemoView } from './views/GuidedDemoView';
+import { ArchitectureView } from './views/ArchitectureView';
 import { UserRole, HealthRecord, InsurancePolicy, ClaimSubmission, AuditEvent, ClaimPrivateInputs } from './types';
 import {
   INITIAL_POLICY,
@@ -44,16 +45,17 @@ export function App() {
   };
 
   // Patient Actions
-  const handleGrantAccess = (recordId: string, doctorAddress: string, doctorName: string, specialty: string) => {
+  const handleGrantAccess = (recordId: string, doctorAddress: string, doctorName: string, specialty: string, role: string = "Specialist") => {
     setRecords(prev => prev.map(rec => {
       if (rec.id === recordId) {
         const existing = rec.authorizedDoctors.find(d => d.doctorAddress.toLowerCase() === doctorAddress.toLowerCase());
         const updatedDocs = existing
-          ? rec.authorizedDoctors.map(d => d.doctorAddress.toLowerCase() === doctorAddress.toLowerCase() ? { ...d, isActive: true } : d)
+          ? rec.authorizedDoctors.map(d => d.doctorAddress.toLowerCase() === doctorAddress.toLowerCase() ? { ...d, isActive: true, role } : d)
           : [...rec.authorizedDoctors, {
               doctorAddress,
               doctorName,
               specialty,
+              role,
               grantedAt: new Date().toISOString().split('T')[0],
               expiresAt: '2027-12-31',
               isActive: true
@@ -69,11 +71,11 @@ export function App() {
       actorRole: 'patient',
       actorAddress: PATIENT_ADDRESS,
       action: 'Doctor Access Granted',
-      details: `Granted ${doctorName} access to Record #${recordId}`,
+      details: `Granted ${doctorName} (${role}) access to Record #${recordId}`,
       badge: 'success'
     };
     setAuditLogs(prev => [audit, ...prev]);
-    addLog(`[Patient] Granted on-chain access key to doctor ${doctorAddress.slice(0, 8)}...`);
+    addLog(`[Patient] Granted on-chain access key to ${role} ${doctorAddress.slice(0, 8)}...`);
   };
 
   const handleRevokeAccess = (recordId: string, doctorAddress: string) => {
@@ -110,11 +112,41 @@ export function App() {
       actorRole: 'patient',
       actorAddress: PATIENT_ADDRESS,
       action: 'Record Anchored',
-      details: `Anchored commitment ${newRecord.recordCommitmentHash.slice(0, 12)}... for ${newRecord.title}`,
+      details: `Anchored commitment ${newRecord.recordCommitmentHash.slice(0, 12)}... for ${newRecord.title} (AES-256-GCM)`,
       badge: 'info'
     };
     setAuditLogs(prev => [audit, ...prev]);
     addLog(`[Patient] Anchored SHA-256 commitment for '${newRecord.title}' into HealthAccessRegistry.sol`);
+  };
+
+  const handleLogRecordView = (recordId: string, viewerAddress: string) => {
+    const audit: AuditEvent = {
+      id: `aud-${Date.now()}`,
+      timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+      actorRole: 'hospital',
+      actorAddress: viewerAddress,
+      action: 'RecordViewed Logged',
+      details: `Viewer ${viewerAddress.slice(0, 8)}... accessed Record #${recordId} (emitted RecordViewed on-chain)`,
+      badge: 'info'
+    };
+    setAuditLogs(prev => [audit, ...prev]);
+    addLog(`[On-Chain] Event RecordViewed(recordId=${recordId.slice(0, 8)}..., viewer=${viewerAddress.slice(0, 8)}...) emitted on HealthAccessRegistry.sol`);
+  };
+
+  const handleBreakGlassAccess = (recordId: string, reason: string, responderName: string, responderAddr: string) => {
+    const txHash = '0x' + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+    const audit: AuditEvent = {
+      id: `aud-${Date.now()}`,
+      timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+      actorRole: 'emergency',
+      actorAddress: responderAddr,
+      action: 'Break-Glass Emergency Accessed',
+      details: `EMERGENCY OVERRIDE by ${responderName}: "${reason}" for Record #${recordId}`,
+      badge: 'danger',
+      txHash
+    };
+    setAuditLogs(prev => [audit, ...prev]);
+    addLog(`[EMERGENCY BREAK-GLASS] Responder ${responderName} overrode access for Record #${recordId}. Reason: "${reason}" permanently committed on-chain.`);
   };
 
   const handleResetDemo = () => {
@@ -385,6 +417,8 @@ export function App() {
             onGrantAccess={handleGrantAccess}
             onRevokeAccess={handleRevokeAccess}
             onAddRecord={handleAddRecord}
+            onLogRecordView={handleLogRecordView}
+            onBreakGlassAccess={handleBreakGlassAccess}
           />
         )}
 
@@ -392,6 +426,9 @@ export function App() {
           <HospitalView
             policy={policy}
             onClaimSubmitted={handleClaimSubmitted}
+            onTestReplayAttack={handleTestReplayAttack}
+            onTestUnaccreditedHospital={handleTestUnaccreditedHospital}
+            onTestLimitExceeded={handleTestLimitExceeded}
             isProcessing={isProcessing}
           />
         )}
@@ -401,8 +438,13 @@ export function App() {
             claims={claims}
             policy={policy}
             onSettleClaim={handleSettleClaim}
+            onTestReplayAttack={handleTestReplayAttack}
             isProcessing={isProcessing}
           />
+        )}
+
+        {currentRole === 'architecture' && (
+          <ArchitectureView auditLogs={auditLogs} />
         )}
       </main>
 
