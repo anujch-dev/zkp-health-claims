@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar';
 import { RoleSwitcher } from './components/RoleSwitcher';
 import { WorkflowStepper } from './components/WorkflowStepper';
@@ -24,6 +24,7 @@ import {
 } from './fixtures/mockData';
 import { generateHealthClaimProof, generateTamperedProof } from './lib/zkp';
 import { CERTIFIED_GROTH16_CIRCUIT } from './fixtures/groth16Artifacts';
+import { api } from './lib/api';
 
 export function App() {
   const [currentRole, setCurrentRole] = useState<UserRole>('demo');
@@ -33,6 +34,7 @@ export function App() {
   const [policy, setPolicy] = useState<InsurancePolicy>(INITIAL_POLICY);
   const [claims, setClaims] = useState<ClaimSubmission[]>(INITIAL_SETTLED_CLAIMS);
   const [auditLogs, setAuditLogs] = useState<AuditEvent[]>(INITIAL_AUDIT_LOGS);
+  const [isBackendOnline, setIsBackendOnline] = useState(true);
   const [demoLogs, setDemoLogs] = useState<string[]>([
     `System Initialized: BN254 Curve & Groth16 circuit (${CERTIFIED_GROTH16_CIRCUIT.nonLinearConstraints} R1CS constraints loaded).`,
     `HealthAccessRegistry deployed at ${REGISTRY_CONTRACT_ADDRESS.slice(0, 10)}...`,
@@ -60,8 +62,30 @@ export function App() {
     setDemoLogs(prev => [`[${new Date().toLocaleTimeString()}] ${message}`, ...prev]);
   };
 
+  // Monitor backend service connectivity on mount
+  useEffect(() => {
+    api.getHealth().then(health => {
+      if (health?.status === 'healthy') {
+        setIsBackendOnline(true);
+        addLog(`[Backend Service] Connected to live Express backend on port ${health.port} (All 5 modules ONLINE)`);
+      } else {
+        setIsBackendOnline(false);
+      }
+    }).catch(() => {
+      setIsBackendOnline(false);
+    });
+  }, []);
+
   // Patient Actions
   const handleGrantAccess = (recordId: string, doctorAddress: string, doctorName: string, specialty: string, role: string = "Specialist") => {
+    // Sync with backend service in background
+    api.grantAccess({
+      patientAddress: PATIENT_ADDRESS,
+      doctorAddress,
+      recordId,
+      role
+    }).catch(() => {});
+
     setRecords(prev => prev.map(rec => {
       if (rec.id === recordId) {
         const existing = rec.authorizedDoctors.find(d => d.doctorAddress.toLowerCase() === doctorAddress.toLowerCase());
@@ -96,6 +120,13 @@ export function App() {
   };
 
   const handleRevokeAccess = (recordId: string, doctorAddress: string) => {
+    // Sync with backend service in background
+    api.revokeAccess({
+      patientAddress: PATIENT_ADDRESS,
+      doctorAddress,
+      recordId
+    }).catch(() => {});
+
     setRecords(prev => prev.map(rec => {
       if (rec.id === recordId) {
         return {
@@ -123,6 +154,16 @@ export function App() {
   };
 
   const handleAddRecord = (newRecord: HealthRecord) => {
+    // Register commitment on backend IPFS and contract relayer
+    api.uploadRecord({
+      patientAddress: PATIENT_ADDRESS,
+      title: newRecord.title,
+      category: newRecord.category,
+      diagnosisCode: newRecord.diagnosisCode,
+      doctorName: newRecord.doctorName,
+      content: newRecord.clinicalNotes
+    }).catch(() => {});
+
     setRecords(prev => [newRecord, ...prev]);
     const audit: AuditEvent = {
       id: `aud-${Date.now()}`,
@@ -139,6 +180,9 @@ export function App() {
   };
 
   const handleLogRecordView = (recordId: string, viewerAddress: string) => {
+    // Record view audit event on backend
+    api.viewRecord(recordId, viewerAddress).catch(() => {});
+
     const audit: AuditEvent = {
       id: `aud-${Date.now()}`,
       timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
@@ -154,6 +198,14 @@ export function App() {
   };
 
   const handleBreakGlassAccess = (recordId: string, reason: string, responderName: string, responderAddr: string) => {
+    // Permanently record break-glass emergency override on backend
+    api.breakGlassEmergency({
+      patientAddress: PATIENT_ADDRESS,
+      recordId,
+      responderAddress: responderAddr,
+      reason
+    }).catch(() => {});
+
     const txHash = '0x' + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
     const audit: AuditEvent = {
       id: `aud-${Date.now()}`,
@@ -187,6 +239,22 @@ export function App() {
 
   // Hospital Actions
   const handleClaimSubmitted = (submission: ClaimSubmission) => {
+    // Relay claim submission and check nullifiers on backend
+    api.submitClaim({
+      proof: submission.proof,
+      publicInputs: submission.publicInputs,
+      hospitalAddress: submission.hospitalAddress,
+      hospitalName: submission.hospitalName,
+      procedureCode: submission.privateInputsSummary?.hiddenProcedure,
+      claimAmount: submission.payoutAmount
+    }).then(res => {
+      if (res?.onChainSettled) {
+        addLog(`[Relayer] Claim #${submission.id} settled via backend service (tx: ${res.transactionHash.slice(0, 10)}...)`);
+      }
+    }).catch(err => {
+      console.warn('Backend claim sync:', err.message);
+    });
+
     setClaims(prev => [submission, ...prev]);
     const audit: AuditEvent = {
       id: `aud-${Date.now()}`,
@@ -505,6 +573,7 @@ export function App() {
         onSelectRole={setCurrentRole}
         terminologyMode={terminologyMode}
         onToggleTerminology={() => setTerminologyMode(m => m === 'plain' ? 'technical' : 'plain')}
+        isBackendOnline={isBackendOnline}
       />
 
       {/* Role Switcher & Workflow Stepper for deep portal workflows */}
