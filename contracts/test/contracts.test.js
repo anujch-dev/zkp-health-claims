@@ -329,13 +329,17 @@ describe("Slice 2 & 3: Decentralized Health Records & ZKP Insurance Claims", fun
     it("should deploy Groth16Verifier.sol and verify a real Circom snarkjs proof on-chain", async function () {
       const sampleCalldataPath = path.join(__dirname, "../../circuits/fixtures/sample_calldata.json");
       if (fs.existsSync(sampleCalldataPath)) {
-        const calldata = JSON.parse(fs.readFileSync(sampleCalldataPath, "utf-8"));
-        const isValid = await realVerifier.verifyProof(
-          calldata.a,
-          calldata.b,
-          calldata.c,
-          calldata.input
-        );
+        const calldataRaw = JSON.parse(fs.readFileSync(sampleCalldataPath, "utf-8"));
+        let a, b, c, input;
+        if (calldataRaw.calldataStr) {
+          [a, b, c, input] = JSON.parse(`[${calldataRaw.calldataStr}]`);
+        } else {
+          a = calldataRaw.a;
+          b = calldataRaw.b;
+          c = calldataRaw.c;
+          input = calldataRaw.input;
+        }
+        const isValid = await realVerifier.verifyProof(a, b, c, input);
         expect(isValid).to.be.true;
       } else {
         const dummyInput = [0, 0, 0, 0, 0];
