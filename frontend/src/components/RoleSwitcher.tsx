@@ -22,19 +22,19 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
   }[] = [
     {
       id: 'demo',
-      label: 'Judge Walkthrough',
-      subtitle: 'One-click scenarios & console',
+      label: 'Overview & Demo',
+      subtitle: 'Editorial walk-through & console',
       icon: PlayCircle,
     },
     {
       id: 'patient',
-      label: '1. Patient Portal',
+      label: '1. Patient Vault',
       subtitle: 'AES-256-GCM, Break-Glass & FHIR',
       icon: User,
     },
     {
       id: 'hospital',
-      label: '2. Hospital Portal',
+      label: '2. Hospital Prover',
       subtitle: 'Groth16 Prover & Attack Simulator',
       icon: Building2,
     },
@@ -54,8 +54,8 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
   ];
 
   return (
-    <div className="bg-slate-900/60 border-b border-slate-800 p-2 sm:p-4">
-      <div className="max-w-7xl mx-auto flex flex-wrap gap-2 justify-center sm:justify-start">
+    <div className="bg-alabaster-100 border-b border-alabaster-300 py-3 px-4 sm:px-6">
+      <div className="max-w-7xl mx-auto flex flex-wrap gap-2.5 justify-center sm:justify-start">
         {roles.map((r) => {
           const Icon = r.icon;
           const isActive = currentRole === r.id;
@@ -63,31 +63,33 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
             <button
               key={r.id}
               onClick={() => onSelectRole(r.id)}
-              className={`flex items-center space-x-3 px-4 py-2.5 rounded-xl border transition-all text-left relative ${
+              className={`flex items-center space-x-3 px-4 py-2 rounded-xl border transition-all text-left relative ${
                 isActive
-                  ? 'bg-indigo-600/20 border-indigo-500/60 text-white shadow-lg shadow-indigo-500/10'
-                  : 'bg-slate-800/40 border-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-800/80 hover:border-slate-700'
+                  ? 'bg-sage-700 border-sage-700 text-white shadow-sm'
+                  : 'bg-white border-alabaster-300 text-clinical-muted hover:text-clinical-text hover:border-sage-300 hover:bg-sage-50/50'
               }`}
             >
               <div
-                className={`p-2 rounded-lg ${
-                  isActive ? 'bg-indigo-500 text-white' : 'bg-slate-700/50 text-slate-400'
+                className={`p-1.5 rounded-lg ${
+                  isActive ? 'bg-sage-800 text-white' : 'bg-alabaster-100 text-clinical-muted'
                 }`}
               >
                 <Icon className="h-4 w-4" />
               </div>
               <div>
-                <div className="flex items-center space-x-2">
-                  <span className={`text-sm font-semibold ${isActive ? 'text-white' : 'text-slate-300'}`}>
+                <div className="flex items-center space-x-1.5">
+                  <span className={`text-xs font-semibold ${isActive ? 'text-white' : 'text-clinical-text'}`}>
                     {r.label}
                   </span>
                   {r.badge !== undefined && (
-                    <span className="px-1.5 py-0.5 rounded-full text-xs font-bold bg-amber-500 text-slate-950">
+                    <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
                       {r.badge}
                     </span>
                   )}
                 </div>
-                <p className="text-[11px] text-slate-400 hidden md:block">{r.subtitle}</p>
+                <p className={`text-[10px] hidden md:block ${isActive ? 'text-sage-200' : 'text-clinical-muted'}`}>
+                  {r.subtitle}
+                </p>
               </div>
             </button>
           );

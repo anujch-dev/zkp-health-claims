@@ -21,18 +21,18 @@ export const GuidedDemoBanner: React.FC<GuidedDemoBannerProps> = ({
   isProcessing,
 }) => {
   return (
-    <div className="bg-gradient-to-r from-indigo-950/60 via-slate-900 to-slate-950 border border-indigo-500/30 rounded-2xl p-5 mb-8 shadow-xl">
+    <div className="bg-white border border-alabaster-300 rounded-2xl p-4 sm:p-5 mb-8 shadow-sm">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center space-x-2">
-            <span className="flex h-2 w-2 rounded-full bg-indigo-400 animate-ping"></span>
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
-              <Cpu className="h-4 w-4 text-indigo-400" />
-              Live Judge Evaluation & Interactive Sandbox
+            <span className="flex h-2 w-2 rounded-full bg-sage-600 animate-ping"></span>
+            <h2 className="text-sm font-semibold text-clinical-text flex items-center gap-1.5">
+              <Cpu className="h-4 w-4 text-sage-600" />
+              Live Judge Evaluation & Attack Sandbox
             </h2>
           </div>
-          <p className="text-xs text-slate-300 max-w-2xl">
-            Test the complete decentralized zero-knowledge pipeline with one click. Compare how the cryptographic prover verifies hospital credentials, policy limits, and replay protection without ever exposing the patient's private diagnosis.
+          <p className="text-xs text-clinical-muted max-w-2xl">
+            Test the complete decentralized zero-knowledge pipeline with 1 click. Verify how the Groth16 circuit and smart contracts enforce policy limits, provider accreditation, and replay protection without leaking clinical secrets.
           </p>
         </div>
 
@@ -40,18 +40,18 @@ export const GuidedDemoBanner: React.FC<GuidedDemoBannerProps> = ({
           <button
             onClick={onRunValidClaim}
             disabled={isProcessing}
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-semibold text-xs shadow-md shadow-emerald-500/20 transition disabled:opacity-50"
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-sage-700 hover:bg-sage-600 text-white font-medium text-xs shadow-sm transition disabled:opacity-50"
           >
-            <Play className="h-3.5 w-3.5 fill-current" />
-            <span>Sample Valid Claim ($2,400 MRI)</span>
+            <Play className="h-3 w-3 fill-current" />
+            <span>Valid Claim ($2,400 MRI)</span>
           </button>
 
           <button
             onClick={onTestReplayAttack}
             disabled={isProcessing}
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 font-semibold text-xs transition disabled:opacity-50"
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-medium transition disabled:opacity-50"
           >
-            <RotateCcw className="h-3.5 w-3.5" />
+            <RotateCcw className="h-3 w-3" />
             <span>Replay Attack</span>
           </button>
 
@@ -59,10 +59,10 @@ export const GuidedDemoBanner: React.FC<GuidedDemoBannerProps> = ({
             <button
               onClick={onTestTamperedProof}
               disabled={isProcessing}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 font-semibold text-xs transition disabled:opacity-50"
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 text-xs font-medium transition disabled:opacity-50"
             >
-              <XCircle className="h-3.5 w-3.5" />
-              <span>Tampered Proof (EVM Revert)</span>
+              <XCircle className="h-3 w-3" />
+              <span>Tampered Proof</span>
             </button>
           )}
 
@@ -70,28 +70,28 @@ export const GuidedDemoBanner: React.FC<GuidedDemoBannerProps> = ({
             <button
               onClick={onTestUnaccreditedHospital}
               disabled={isProcessing}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-500/40 font-semibold text-xs transition disabled:opacity-50"
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-medium transition disabled:opacity-50"
             >
-              <Lock className="h-3.5 w-3.5" />
-              <span>Unlicensed Hospital</span>
+              <Lock className="h-3 w-3" />
+              <span>Rogue Provider</span>
             </button>
           )}
 
           <button
             onClick={onTestLimitExceeded}
             disabled={isProcessing}
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 font-semibold text-xs transition disabled:opacity-50"
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 text-xs font-medium transition disabled:opacity-50"
           >
-            <ShieldAlert className="h-3.5 w-3.5" />
+            <ShieldAlert className="h-3 w-3" />
             <span>Limit Exceeded ($75k)</span>
           </button>
 
           <button
             onClick={onTestExpiredPolicy}
             disabled={isProcessing}
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-semibold text-xs transition disabled:opacity-50"
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-alabaster-200 hover:bg-alabaster-300 text-clinical-text border border-alabaster-300 text-xs font-medium transition disabled:opacity-50"
           >
-            <AlertTriangle className="h-3.5 w-3.5" />
+            <AlertTriangle className="h-3 w-3" />
             <span>Expired Policy</span>
           </button>
         </div>
