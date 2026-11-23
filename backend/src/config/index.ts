@@ -1,5 +1,6 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -7,9 +8,30 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Detect circuit & contract artifact paths (bundled in backend/ vs monorepo root)
+const bundledCircuitsDir = path.resolve(__dirname, '../../circuits');
+const monorepoCircuitsDir = path.resolve(__dirname, '../../../circuits');
+const bundledContractsDir = path.resolve(__dirname, '../../contracts');
+const monorepoContractsDir = path.resolve(__dirname, '../../../contracts');
+
+const hasBundledWasm = fs.existsSync(path.join(bundledCircuitsDir, 'health_claim.wasm'));
+
+const circuitsDir = hasBundledWasm ? bundledCircuitsDir : monorepoCircuitsDir;
+const contractsDir = fs.existsSync(bundledContractsDir) ? bundledContractsDir : monorepoContractsDir;
+const circuitWasm = hasBundledWasm
+  ? path.join(bundledCircuitsDir, 'health_claim.wasm')
+  : path.resolve(monorepoCircuitsDir, 'build/health_claim_js/health_claim.wasm');
+const circuitZkey = hasBundledWasm
+  ? path.join(bundledCircuitsDir, 'circuit_final.zkey')
+  : path.resolve(monorepoCircuitsDir, 'build/circuit_final.zkey');
+const verificationKey = hasBundledWasm
+  ? path.join(bundledCircuitsDir, 'verification_key.json')
+  : path.resolve(monorepoCircuitsDir, 'build/verification_key.json');
+
 export const CONFIG = {
   PORT: process.env.PORT ? parseInt(process.env.PORT, 10) : 5001,
-  NODE_ENV: process.env.NODE_ENV || 'development',
+  NODE_ENV: process.env.NODE_ENV || 'production',
+  DATABASE_URL: process.env.DATABASE_URL || '',
   RPC_URL: process.env.RPC_URL || 'http://127.0.0.1:8545',
   CHAIN_ID: process.env.CHAIN_ID ? parseInt(process.env.CHAIN_ID, 10) : 31337,
   
@@ -24,11 +46,11 @@ export const CONFIG = {
 
   // Circom & ZK Artifact Paths
   PATHS: {
-    circuitsDir: path.resolve(__dirname, '../../../circuits'),
-    circuitWasm: path.resolve(__dirname, '../../../circuits/build/health_claim_js/health_claim.wasm'),
-    circuitZkey: path.resolve(__dirname, '../../../circuits/build/circuit_final.zkey'),
-    verificationKey: path.resolve(__dirname, '../../../circuits/build/verification_key.json'),
-    contractsDir: path.resolve(__dirname, '../../../contracts'),
+    circuitsDir,
+    contractsDir,
+    circuitWasm,
+    circuitZkey,
+    verificationKey,
     storageDir: path.resolve(__dirname, '../../storage')
   },
 
