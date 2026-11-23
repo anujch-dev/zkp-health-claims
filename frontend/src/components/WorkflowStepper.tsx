@@ -91,11 +91,11 @@ export const WorkflowStepper: React.FC<WorkflowStepperProps> = ({
   const nextAction = getNextRole();
 
   return (
-    <div className="bg-white border-b border-alabaster-300 py-3.5 px-4 sm:px-6 shadow-sm">
+    <div className="bg-[#FAF9F6] border-b border-[#E7E1D7] py-3 px-4 sm:px-6">
       <div className="max-w-7xl mx-auto flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         {/* Stepper Steps */}
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          <span className="text-[11px] font-mono uppercase tracking-wider text-clinical-muted font-bold mr-1 hidden xl:inline">
+          <span className="text-[10px] uppercase tracking-widest text-[#5F685F] font-bold mr-1 hidden xl:inline">
             Verification Journey:
           </span>
 
@@ -107,26 +107,26 @@ export const WorkflowStepper: React.FC<WorkflowStepperProps> = ({
               <React.Fragment key={s.id}>
                 <button
                   onClick={() => onSelectRole(s.id)}
-                  className={`flex items-center space-x-2 px-3 py-1.5 rounded-xl border text-xs transition-all ${
+                  className={`flex items-center space-x-2 px-3 py-1.5 rounded-sm border text-xs transition-all ${
                     isActive
-                      ? 'bg-sage-700 text-white border-sage-700 shadow-sm font-semibold'
+                      ? 'bg-[#294638] text-[#FAF9F6] border-[#294638] font-semibold'
                       : s.isDone
-                      ? 'bg-sage-50 text-sage-900 border-sage-200 hover:border-sage-300'
-                      : 'bg-alabaster-50 text-clinical-muted border-alabaster-200 hover:text-clinical-text hover:bg-white'
+                      ? 'bg-[#E7E1D7] text-[#294638] border-[#A6B3A1]'
+                      : 'bg-white text-[#5F685F] border-[#E7E1D7] hover:text-[#292D29] hover:bg-[#F3F0E9]'
                   }`}
                   title={terminologyMode === 'plain' ? s.plainDesc : s.desc}
                 >
                   <div
-                    className={`h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                    className={`h-4.5 w-4.5 rounded-full flex items-center justify-center text-[10px] font-bold ${
                       isActive
-                        ? 'bg-sage-800 text-white'
+                        ? 'bg-[#1E342A] text-[#FAF9F6]'
                         : s.isDone
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-alabaster-200 text-clinical-muted'
+                        ? 'bg-[#294638] text-[#FAF9F6]'
+                        : 'bg-[#E7E1D7] text-[#5F685F]'
                     }`}
                   >
                     {s.isDone && !isActive ? (
-                      <CheckCircle2 className="h-3 w-3 stroke-[3]" />
+                      <CheckCircle2 className="h-3 w-3 stroke-[2.5]" />
                     ) : (
                       <span>{s.stepNumber}</span>
                     )}
@@ -137,14 +137,10 @@ export const WorkflowStepper: React.FC<WorkflowStepperProps> = ({
                   <span className="font-medium whitespace-nowrap">
                     {terminologyMode === 'plain' ? s.plainTitle : s.title}
                   </span>
-
-                  {s.isDone && !isActive && (
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-                  )}
                 </button>
 
                 {idx < steps.length - 1 && (
-                  <span className="text-alabaster-400 font-mono text-xs hidden sm:inline">&rarr;</span>
+                  <span className="text-[#A6B3A1] font-mono text-xs hidden sm:inline">&rarr;</span>
                 )}
               </React.Fragment>
             );
@@ -155,10 +151,10 @@ export const WorkflowStepper: React.FC<WorkflowStepperProps> = ({
         {nextAction && (
           <button
             onClick={() => onSelectRole(nextAction.role)}
-            className="inline-flex items-center space-x-2 px-4 py-1.5 rounded-xl bg-sage-100 hover:bg-sage-200 text-sage-800 border border-sage-300 text-xs font-semibold shadow-sm transition group self-start lg:self-auto"
+            className="inline-flex items-center space-x-2 px-4 py-1.5 rounded-sm bg-[#294638] hover:bg-[#1E342A] text-[#FAF9F6] text-xs uppercase tracking-wider font-semibold transition group self-start lg:self-auto"
           >
             <span>{nextAction.label}</span>
-            <ArrowRight className="h-3.5 w-3.5 text-sage-700 group-hover:translate-x-0.5 transition" />
+            <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
           </button>
         )}
       </div>
