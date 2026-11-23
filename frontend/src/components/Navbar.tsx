@@ -8,6 +8,7 @@ interface NavbarProps {
   onSelectRole?: (role: UserRole) => void;
   terminologyMode: TerminologyMode;
   onToggleTerminology: () => void;
+  isBackendOnline?: boolean;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -16,6 +17,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onSelectRole,
   terminologyMode,
   onToggleTerminology,
+  isBackendOnline = true,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -165,6 +167,12 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="px-3 py-1.5 rounded-sm bg-[#FAF9F6] border border-[#E7E1D7] text-[11px] text-[#294638] font-medium flex items-center space-x-1.5">
             <span className="h-1.5 w-1.5 rounded-full bg-[#294638]"></span>
             <span>{roleInfo.name}</span>
+          </div>
+
+          {/* Backend API Service Indicator */}
+          <div className="hidden lg:flex items-center space-x-1.5 px-2.5 py-1.5 rounded-sm bg-[#FAF9F6] border border-[#E7E1D7] text-[11px] font-mono text-[#5F685F]" title="Express backend service running on port 5001 with 5 modules">
+            <span className={`h-1.5 w-1.5 rounded-full ${isBackendOnline ? 'bg-emerald-600 animate-pulse' : 'bg-amber-500'}`}></span>
+            <span>{isBackendOnline ? 'API :5001' : 'API :5001 (offline)'}</span>
           </div>
 
           {/* Hardhat Node Indicator */}

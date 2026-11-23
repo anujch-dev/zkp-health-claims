@@ -17,7 +17,12 @@ router.get('/merkle-tree', async (_req: Request, res: Response): Promise<void> =
       merkleRootHex: '0x' + BigInt(zkpService.hospitalRoot).toString(16).padStart(64, '0'),
       treeDepth: 4,
       totalLeaves: zkpService.hospitalLeaves.length,
-      accreditedHospitals: [\n        { id: '1001', name: 'Mayo Clinic Healthcare System', leafIndex: 0, accredited: true },\n        { id: '1002', name: 'Johns Hopkins Medicine', leafIndex: 1, accredited: true },\n        { id: '1003', name: 'Massachusetts General Hospital', leafIndex: 2, accredited: true },\n        { id: '1004', name: 'Cleveland Clinic Foundation', leafIndex: 3, accredited: true }\n      ]
+      accreditedHospitals: [
+        { id: '1001', name: 'Mayo Clinic Healthcare System', leafIndex: 0, accredited: true },
+        { id: '1002', name: 'Johns Hopkins Medicine', leafIndex: 1, accredited: true },
+        { id: '1003', name: 'Massachusetts General Hospital', leafIndex: 2, accredited: true },
+        { id: '1004', name: 'Cleveland Clinic Foundation', leafIndex: 3, accredited: true }
+      ]
     });
   } catch (err: any) {
     res.status(500).json({ error: 'Failed to retrieve Merkle tree', details: err.message });

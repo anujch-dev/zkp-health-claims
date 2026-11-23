@@ -14,7 +14,34 @@ function seedDemoClaims() {
   const claim1Id = 'CLM-8801-5501';
   const claim1Nullifier = '0x0b0b8c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1122';
   
-  claimsDb.set(claim1Id, {\n    id: claim1Id,\n    claimNullifier: claim1Nullifier,\n    policyCommitment: '0x12b6dcec349f74e997d13b582eb6cdad2860e0c0cc3e9aa3676404e4edbb79be',\n    hospitalAddress: CONFIG.DEMO_ROLES.HOSPITAL,\n    hospitalName: 'Mayo Clinic Healthcare System',\n    claimAmount: 2500,\n    claimDate: 1732320000,\n    procedureCode: '102',\n    procedureName: 'Laparoscopic Appendectomy',\n    status: 'settled',\n    publicInputs: {\n      approvedHospitalRoot: CONFIG.CONTRACTS.ApprovedHospitalMerkleRootDecimal,\n      policyCommitment: '18235321658131723648847967345698509104713943756027922529868321960257868673173',\n      claimAmount: '2500',\n      claimDate: '1732320000',\n      claimNullifier: claim1Nullifier\n    },\n    proof: {\n      pi_a: ['0x1111', '0x2222'],\n      pi_b: [['0x3333', '0x4444'], ['0x5555', '0x6666']],\n      pi_c: ['0x7777', '0x8888'],\n      protocol: 'groth16',\n      curve: 'bn128'\n    },\n    txHash: '0x4a7e9b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a',\n    settledAt: Date.now() - 3600000\n  });
+  claimsDb.set(claim1Id, {
+    id: claim1Id,
+    claimNullifier: claim1Nullifier,
+    policyCommitment: '0x12b6dcec349f74e997d13b582eb6cdad2860e0c0cc3e9aa3676404e4edbb79be',
+    hospitalAddress: CONFIG.DEMO_ROLES.HOSPITAL,
+    hospitalName: 'Mayo Clinic Healthcare System',
+    claimAmount: 2500,
+    claimDate: 1732320000,
+    procedureCode: '102',
+    procedureName: 'Laparoscopic Appendectomy',
+    status: 'settled',
+    publicInputs: {
+      approvedHospitalRoot: CONFIG.CONTRACTS.ApprovedHospitalMerkleRootDecimal,
+      policyCommitment: '18235321658131723648847967345698509104713943756027922529868321960257868673173',
+      claimAmount: '2500',
+      claimDate: '1732320000',
+      claimNullifier: claim1Nullifier
+    },
+    proof: {
+      pi_a: ['0x1111', '0x2222'],
+      pi_b: [['0x3333', '0x4444'], ['0x5555', '0x6666']],
+      pi_c: ['0x7777', '0x8888'],
+      protocol: 'groth16',
+      curve: 'bn128'
+    },
+    txHash: '0x4a7e9b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a',
+    settledAt: Date.now() - 3600000
+  });
 }
 
 seedDemoClaims();
