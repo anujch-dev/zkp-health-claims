@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, Building2, ShieldCheck, PlayCircle, Network } from 'lucide-react';
+import { User, Building2, ShieldCheck, PlayCircle } from 'lucide-react';
 import { UserRole } from '../types';
 
 interface RoleSwitcherProps {
@@ -22,34 +22,28 @@ export const RoleSwitcher: React.FC<RoleSwitcherProps> = ({
   }[] = [
     {
       id: 'demo',
-      label: 'Overview & Demo',
-      subtitle: 'Editorial walk-through & console',
+      label: 'Home Overview',
+      subtitle: 'Platform overview & claim settlement',
       icon: PlayCircle,
     },
     {
       id: 'patient',
-      label: '1. Patient Vault',
-      subtitle: 'AES-256-GCM, Break-Glass & FHIR',
+      label: '1. Patient Records',
+      subtitle: 'Encrypted medical vault & permissions',
       icon: User,
     },
     {
       id: 'hospital',
-      label: '2. Hospital Prover',
-      subtitle: 'Groth16 Prover & Attack Simulator',
+      label: '2. Hospital Claims',
+      subtitle: 'Fetch records & generate claim proof',
       icon: Building2,
     },
     {
       id: 'insurer',
-      label: '3. Insurer & Settlement',
-      subtitle: 'X-Ray Calldata & Proof Receipts',
+      label: '3. Insurance Settlement',
+      subtitle: 'Verify proof & trigger payout',
       icon: ShieldCheck,
       badge: pendingClaimsCount > 0 ? pendingClaimsCount : undefined,
-    },
-    {
-      id: 'architecture',
-      label: '4. Threat Model & Audit',
-      subtitle: 'On-Chain vs Off-Chain Explorer',
-      icon: Network,
     },
   ];
 

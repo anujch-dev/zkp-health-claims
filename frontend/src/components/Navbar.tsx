@@ -1,28 +1,22 @@
 import React, { useState } from 'react';
-import { Shield, Sparkles, Sliders, Menu, X, Check } from 'lucide-react';
+import { Shield, Menu, X } from 'lucide-react';
 import { UserRole, TerminologyMode } from '../types';
 
 interface NavbarProps {
   currentRole: UserRole;
-  walletBalance: string;
+  walletBalance?: string;
   onSelectRole?: (role: UserRole) => void;
-  terminologyMode: TerminologyMode;
-  onToggleTerminology: () => void;
+  terminologyMode?: TerminologyMode;
+  onToggleTerminology?: () => void;
   isBackendOnline?: boolean;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
   currentRole,
-  walletBalance,
   onSelectRole,
-  terminologyMode,
-  onToggleTerminology,
-  isBackendOnline = true,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Exact navigation labels required by prompt:
-  // Home | How It Works | Verify Claim | Dashboard | About / FAQs
   const handleNavClick = (target: string) => {
     setMobileMenuOpen(false);
     if (!onSelectRole) return;
@@ -38,29 +32,25 @@ export const Navbar: React.FC<NavbarProps> = ({
       }, 50);
     } else if (target === 'verify-claim') {
       onSelectRole('hospital');
+    } else if (target === 'settle-claim') {
+      onSelectRole('insurer');
     } else if (target === 'dashboard') {
       onSelectRole('patient');
-    } else if (target === 'about-faqs') {
-      onSelectRole('architecture');
     }
   };
 
-  const getRoleBadge = () => {
+  const getRoleLabel = () => {
     switch (currentRole) {
       case 'patient':
-        return { name: 'Patient Vault', role: 'PATIENT' };
+        return 'Patient Vault';
       case 'hospital':
-        return { name: 'Hospital Prover', role: 'HOSPITAL' };
+        return 'Hospital Prover';
       case 'insurer':
-        return { name: 'Insurer Settlement', role: 'INSURER' };
-      case 'architecture':
-        return { name: 'Audit & Threat Model', role: 'AUDIT' };
+        return 'Insurer Settlement';
       default:
-        return { name: 'Overview / Evaluator', role: 'EVALUATOR' };
+        return 'Overview';
     }
   };
-
-  const roleInfo = getRoleBadge();
 
   return (
     <header className="bg-[#F3F0E9] border-b border-[#E7E1D7] sticky top-0 z-50">
@@ -78,12 +68,9 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="font-serif font-bold text-xl sm:text-2xl text-[#294638] tracking-tight">
                 ZK-HealthClaims
               </span>
-              <span className="text-[10px] tracking-wider uppercase px-2 py-0.5 rounded bg-[#E7E1D7] text-[#294638] font-mono font-medium">
-                W3-01
-              </span>
             </div>
             <p className="text-[11px] text-[#5F685F] tracking-wide font-normal -mt-0.5">
-              Privacy-Preserving Health Records & ZKP Claims
+              Healthcare Insurance Claims & Settlement
             </p>
           </div>
         </div>
@@ -116,70 +103,45 @@ export const Navbar: React.FC<NavbarProps> = ({
                 : 'text-[#292D29] hover:text-[#294638]'
             }`}
           >
-            Verify Claim
+            Hospital Claims
+          </button>
+
+          <button
+            onClick={() => handleNavClick('settle-claim')}
+            className={`uppercase text-[11px] tracking-widest font-medium transition-colors ${
+              currentRole === 'insurer'
+                ? 'text-[#294638] font-semibold border-b border-[#294638] pb-0.5'
+                : 'text-[#292D29] hover:text-[#294638]'
+            }`}
+          >
+            Insurance Settlement
           </button>
 
           <button
             onClick={() => handleNavClick('dashboard')}
             className={`uppercase text-[11px] tracking-widest font-medium transition-colors ${
-              currentRole === 'patient' || currentRole === 'insurer'
+              currentRole === 'patient'
                 ? 'text-[#294638] font-semibold border-b border-[#294638] pb-0.5'
                 : 'text-[#292D29] hover:text-[#294638]'
             }`}
           >
-            Dashboard
-          </button>
-
-          <button
-            onClick={() => handleNavClick('about-faqs')}
-            className={`uppercase text-[11px] tracking-widest font-medium transition-colors ${
-              currentRole === 'architecture'
-                ? 'text-[#294638] font-semibold border-b border-[#294638] pb-0.5'
-                : 'text-[#292D29] hover:text-[#294638]'
-            }`}
-          >
-            About / FAQs
+            My Health Records
           </button>
         </nav>
 
-        {/* Right Utilities: Terminology Mode & Active Portal Badge */}
+        {/* Right Utilities: Clean Minimal Role Status & Active Indicator */}
         <div className="hidden sm:flex items-center space-x-3">
-          {/* Terminology Switcher */}
+          <div className="px-3.5 py-1.5 rounded-sm bg-[#FAF9F6] border border-[#E7E1D7] text-xs text-[#294638] font-medium flex items-center space-x-2">
+            <span className="h-2 w-2 rounded-full bg-[#294638]"></span>
+            <span>{getRoleLabel()}</span>
+          </div>
+
           <button
-            onClick={onToggleTerminology}
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-sm bg-[#FAF9F6] border border-[#E7E1D7] text-xs text-[#292D29] hover:border-[#A6B3A1] transition shadow-none"
-            title="Toggle between Plain English (Clinical/Patient) and Technical (Cryptographic ZK) descriptions"
+            onClick={() => handleNavClick('verify-claim')}
+            className="px-4 py-2 rounded-sm bg-[#294638] hover:bg-[#1E342A] text-[#FAF9F6] text-xs uppercase tracking-wider font-semibold transition"
           >
-            {terminologyMode === 'plain' ? (
-              <>
-                <Sparkles className="h-3 w-3 text-[#294638]" />
-                <span className="text-[11px] font-medium">Plain Mode</span>
-              </>
-            ) : (
-              <>
-                <Sliders className="h-3 w-3 text-[#5F685F]" />
-                <span className="text-[11px] font-medium font-mono">ZK Mode</span>
-              </>
-            )}
+            Settle a Claim
           </button>
-
-          {/* Role Status Tag */}
-          <div className="px-3 py-1.5 rounded-sm bg-[#FAF9F6] border border-[#E7E1D7] text-[11px] text-[#294638] font-medium flex items-center space-x-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#294638]"></span>
-            <span>{roleInfo.name}</span>
-          </div>
-
-          {/* Backend API Service Indicator */}
-          <div className="hidden lg:flex items-center space-x-1.5 px-2.5 py-1.5 rounded-sm bg-[#FAF9F6] border border-[#E7E1D7] text-[11px] font-mono text-[#5F685F]" title="Express backend service running on port 5001 with 5 modules">
-            <span className={`h-1.5 w-1.5 rounded-full ${isBackendOnline ? 'bg-emerald-600 animate-pulse' : 'bg-amber-500'}`}></span>
-            <span>{isBackendOnline ? 'API :5001' : 'API :5001 (offline)'}</span>
-          </div>
-
-          {/* Hardhat Node Indicator */}
-          <div className="hidden xl:flex items-center space-x-1.5 px-2.5 py-1.5 rounded-sm bg-[#FAF9F6] border border-[#E7E1D7] text-[11px] font-mono text-[#5F685F]">
-            <Check className="h-3 w-3 text-[#294638]" />
-            <span>{walletBalance} ETH</span>
-          </div>
         </div>
 
         {/* Mobile Hamburger Toggle */}
@@ -212,33 +174,24 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => handleNavClick('verify-claim')}
               className="text-left uppercase text-xs tracking-widest font-medium py-2 text-[#292D29] hover:text-[#294638] border-b border-[#E7E1D7]/60"
             >
-              Verify Claim
+              Hospital Claims
+            </button>
+            <button
+              onClick={() => handleNavClick('settle-claim')}
+              className="text-left uppercase text-xs tracking-widest font-medium py-2 text-[#292D29] hover:text-[#294638] border-b border-[#E7E1D7]/60"
+            >
+              Insurance Settlement
             </button>
             <button
               onClick={() => handleNavClick('dashboard')}
-              className="text-left uppercase text-xs tracking-widest font-medium py-2 text-[#292D29] hover:text-[#294638] border-b border-[#E7E1D7]/60"
-            >
-              Dashboard (Patient / Insurer)
-            </button>
-            <button
-              onClick={() => handleNavClick('about-faqs')}
               className="text-left uppercase text-xs tracking-widest font-medium py-2 text-[#292D29] hover:text-[#294638]"
             >
-              About / FAQs
+              My Health Records
             </button>
-          </div>
-
-          <div className="pt-3 border-t border-[#E7E1D7] flex items-center justify-between">
-            <button
-              onClick={onToggleTerminology}
-              className="px-3 py-1.5 rounded-sm bg-[#F3F0E9] border border-[#E7E1D7] text-xs font-medium text-[#294638]"
-            >
-              Toggle Mode: {terminologyMode === 'plain' ? 'Plain English' : 'ZK Technical'}
-            </button>
-            <span className="text-xs font-mono text-[#5F685F]">{walletBalance} ETH</span>
           </div>
         </div>
       )}
     </header>
   );
 };
+export default Navbar;

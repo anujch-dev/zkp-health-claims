@@ -1,6 +1,6 @@
 import React from 'react';
 import { UserRole, TerminologyMode } from '../types';
-import { ArrowRight, CheckCircle2, Lock, Cpu, DollarSign, Network } from 'lucide-react';
+import { ArrowRight, CheckCircle2, Lock, Cpu, DollarSign } from 'lucide-react';
 
 interface WorkflowStepperProps {
   currentRole: UserRole;
@@ -59,16 +59,6 @@ export const WorkflowStepper: React.FC<WorkflowStepperProps> = ({
       isDone: hasSettled,
       icon: DollarSign,
     },
-    {
-      id: 'architecture',
-      stepNumber: 4,
-      title: 'Audit Trail & Threat Model',
-      plainTitle: '4. Public Audit Log',
-      desc: 'On-chain vs off-chain boundary inspection',
-      plainDesc: 'Verify every transaction on the public ledger',
-      isDone: hasSettled,
-      icon: Network,
-    },
   ];
 
   // Determine what the recommended next step is
@@ -83,9 +73,9 @@ export const WorkflowStepper: React.FC<WorkflowStepperProps> = ({
       return { role: 'insurer', label: 'Proceed to Step 3: Insurer Settlement' };
     }
     if (currentRole === 'insurer') {
-      return { role: 'architecture', label: 'Inspect Step 4: Audit Trail & Security' };
+      return { role: 'demo', label: 'Return to Home Overview' };
     }
-    return { role: 'demo', label: 'Return to Overview & Live Demo' };
+    return { role: 'demo', label: 'Return to Home Overview' };
   };
 
   const nextAction = getNextRole();
