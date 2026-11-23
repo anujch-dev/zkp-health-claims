@@ -98,8 +98,7 @@ export function App() {
   const handleRevokeAccess = (recordId: string, doctorAddress: string) => {
     setRecords(prev => prev.map(rec => {
       if (rec.id === recordId) {
-        return {
-          ...rec,
+        return {\n          ...rec,
           authorizedDoctors: rec.authorizedDoctors.map(d =>
             d.doctorAddress.toLowerCase() === doctorAddress.toLowerCase() ? { ...d, isActive: false } : d
           )
@@ -161,12 +160,12 @@ export function App() {
       actorRole: 'emergency',
       actorAddress: responderAddr,
       action: 'Break-Glass Emergency Accessed',
-      details: `EMERGENCY OVERRIDE by ${responderName}: "${reason}" for Record #${recordId}`,
+      details: `EMERGENCY OVERRIDE by ${responderName}: \"${reason}\" for Record #${recordId}`,
       badge: 'danger',
       txHash
     };
     setAuditLogs(prev => [audit, ...prev]);
-    addLog(`[EMERGENCY BREAK-GLASS] Responder ${responderName} overrode access for Record #${recordId}. Reason: "${reason}" permanently committed on-chain.`);
+    addLog(`[EMERGENCY BREAK-GLASS] Responder ${responderName} overrode access for Record #${recordId}. Reason: \"${reason}\" permanently committed on-chain.`);
     addToast('error', 'Break-Glass Emergency Triggered', `Emergency access by ${responderName} committed permanently to audit trail.`);
   };
 
@@ -340,7 +339,7 @@ export function App() {
     addLog(`[Contract] Re-checking nullifier: ${targetClaim.publicInputs.claimNullifier.slice(0, 16)}...`);
 
     setTimeout(() => {
-      addLog(`[REVERT] Transaction reverted with custom error: ClaimAlreadyNullified("${targetClaim.publicInputs.claimNullifier.slice(0, 16)}...")`);
+      addLog(`[REVERT] Transaction reverted with custom error: ClaimAlreadyNullified(\"${targetClaim.publicInputs.claimNullifier.slice(0, 16)}...\")`);
       addLog(`[BLOCKED] Replay attack thwarted! Smart contract prevented double-spend.`);
 
       const replayedClaim: ClaimSubmission = {
@@ -480,8 +479,7 @@ export function App() {
       addLog(`[PRIVACY PRESERVED] Prover aborted. Invalid claim halted before reaching the blockchain.`);
 
       const audit: AuditEvent = {
-        id: `aud-${Date.now()}`,
-        timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+        id: `aud-${Date.now()}`,\n        timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
         actorRole: 'hospital',
         actorAddress: ACCREDITED_HOSPITALS[0].walletAddress,
         action: 'Coverage Limit Exceeded',
@@ -498,7 +496,7 @@ export function App() {
   const pendingClaimsCount = claims.filter(c => c.status === 'VERIFIED').length;
 
   return (
-    <div className="min-h-screen bg-[#F7F7F5] text-clinical-text flex flex-col">
+    <div className=\"min-h-screen bg-[#F3F0E9] text-[#292D29] flex flex-col font-sans selection:bg-[#E7E1D7] selection:text-[#294638]\">
       <Navbar
         currentRole={currentRole}
         walletBalance={walletBalance}
@@ -506,21 +504,27 @@ export function App() {
         terminologyMode={terminologyMode}
         onToggleTerminology={() => setTerminologyMode(m => m === 'plain' ? 'technical' : 'plain')}
       />
-      <RoleSwitcher
-        currentRole={currentRole}
-        onSelectRole={setCurrentRole}
-        pendingClaimsCount={pendingClaimsCount}
-      />
-      <WorkflowStepper
-        currentRole={currentRole}
-        onSelectRole={setCurrentRole}
-        hasRecord={records.length > 0}
-        hasProofOrClaim={claims.length > 0}
-        hasSettled={claims.some(c => c.status === 'PAYOUT_SETTLED')}
-        terminologyMode={terminologyMode}
-      />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Role Switcher & Workflow Stepper for deep portal workflows */}
+      {currentRole !== 'demo' && (
+        <>
+          <RoleSwitcher
+            currentRole={currentRole}
+            onSelectRole={setCurrentRole}
+            pendingClaimsCount={pendingClaimsCount}
+          />
+          <WorkflowStepper
+            currentRole={currentRole}
+            onSelectRole={setCurrentRole}
+            hasRecord={records.length > 0}
+            hasProofOrClaim={claims.length > 0}
+            hasSettled={claims.some(c => c.status === 'PAYOUT_SETTLED')}
+            terminologyMode={terminologyMode}
+          />
+        </>
+      )}
+
+      <main className=\"flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8\">
         {currentRole !== 'demo' && (
           <GuidedDemoBanner
             onRunValidClaim={handleRunValidClaim}
@@ -594,13 +598,28 @@ export function App() {
         )}
       </main>
 
-      <footer className="border-t border-alabaster-300 bg-white py-6 text-center text-xs text-clinical-muted">
-        <p className="font-serif font-semibold text-clinical-text">
-          ZK-HealthClaims · Privacy-Preserving Health Records & ZKP Insurance Claims · WEB3 · W3-01
-        </p>
-        <p className="mt-1 font-mono text-[11px] text-clinical-muted">
-          Client-side Groth16 Prover & EVM Smart Contracts · Calm Editorial Clinical Theme
-        </p>
+      <footer className=\"border-t border-[#E7E1D7] bg-[#FAF9F6] py-10 text-center text-xs text-[#5F685F]\">
+        <div className=\"max-w-7xl mx-auto px-4 space-y-3\">
+          <div className=\"flex items-center justify-center space-x-2\">
+            <span className=\"font-serif font-bold text-xl text-[#294638]\">ZK-HealthClaims</span>
+            <span className=\"text-[10px] uppercase font-mono px-2 py-0.5 rounded-sm bg-[#E7E1D7] text-[#294638] font-semibold\">
+              Track 4 · W3-01
+            </span>
+          </div>
+          <p className=\"font-normal text-xs text-[#5F685F] max-w-lg mx-auto leading-relaxed\">
+            Privacy-Preserving Health Records & Zero-Knowledge Insurance Claims. Powered by Groth16 zk-SNARKs and EVM Pairing Precompiles on Ethereum.
+          </p>
+          <div className=\"flex flex-wrap justify-center gap-6 text-[11px] uppercase tracking-wider text-[#292D29] pt-2\">
+            <button onClick={() => setCurrentRole('demo')} className=\"hover:text-[#294638] transition\">Home</button>
+            <button onClick={() => setCurrentRole('patient')} className=\"hover:text-[#294638] transition\">Patient Vault</button>
+            <button onClick={() => setCurrentRole('hospital')} className=\"hover:text-[#294638] transition\">Hospital Prover</button>
+            <button onClick={() => setCurrentRole('insurer')} className=\"hover:text-[#294638] transition\">Insurer Settlement</button>
+            <button onClick={() => setCurrentRole('architecture')} className=\"hover:text-[#294638] transition\">Threat Model & Audit</button>
+          </div>
+          <p className=\"text-[11px] font-mono text-[#7B847B] pt-2\">
+            Contracts: Registry ({REGISTRY_CONTRACT_ADDRESS.slice(0, 10)}...) · Verifier ({VERIFIER_CONTRACT_ADDRESS.slice(0, 10)}...) · Settlement ({SETTLEMENT_CONTRACT_ADDRESS.slice(0, 10)}...)
+          </p>
+        </div>
       </footer>
 
       <ToastContainer toasts={toasts} onDismiss={removeToast} />
