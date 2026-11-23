@@ -61,6 +61,124 @@ export const PRESET_PATIENTS: PresetPatientProfile[] = [
   }
 ];
 
+export interface ClinicianDirectoryEntry {
+  id: string;
+  name: string;
+  title: string;
+  specialty: string;
+  hospital: string;
+  walletAddress: string;
+  licenseNumber: string;
+  avatar: string;
+}
+
+export const CLINICIAN_DIRECTORY: ClinicianDirectoryEntry[] = [
+  {
+    id: "doc-1",
+    name: "Dr. Sarah Lin, MD",
+    title: "Chief of Neurology",
+    specialty: "Neurology",
+    hospital: "Apex University Health Care",
+    walletAddress: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+    licenseNumber: "MED-NY-49102",
+    avatar: "SL"
+  },
+  {
+    id: "doc-2",
+    name: "Dr. Marcus Brody, MD",
+    title: "Cardiothoracic Specialist",
+    specialty: "Cardiology",
+    hospital: "Mayo Memorial Research Clinic",
+    walletAddress: "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
+    licenseNumber: "MED-MN-88120",
+    avatar: "MB"
+  },
+  {
+    id: "doc-3",
+    name: "Dr. Elena Rostova, PhD",
+    title: "Director of Clinical Endocrinology",
+    specialty: "Endocrinology",
+    hospital: "Stanford Biomedical Pavilion",
+    walletAddress: "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65",
+    licenseNumber: "MED-CA-99318",
+    avatar: "ER"
+  },
+  {
+    id: "doc-4",
+    name: "Dr. James Wilson, MD",
+    title: "Attending Emergency Physician",
+    specialty: "Emergency Medicine",
+    hospital: "St. Jude Metropolitan Hospital",
+    walletAddress: "0x9965507D1a55bcC2695C58ba16FB37d819B0A4df",
+    licenseNumber: "MED-CA-33819",
+    avatar: "JW"
+  }
+];
+
+export interface MedicalStudyPreset {
+  id: string;
+  title: string;
+  category: 'Diagnostic' | 'Surgical' | 'Prescription' | 'Lab Result';
+  hospital: string;
+  doctorName: string;
+  doctorAddress: string;
+  diagnosisCode: string;
+  diagnosisDesc: string;
+  prescriptions: string;
+  clinicalNotes: string;
+}
+
+export const MEDICAL_STUDY_PRESETS: MedicalStudyPreset[] = [
+  {
+    id: "preset-mri",
+    title: "Cranial Contrast Neuro-MRI & Brainstem Study",
+    category: "Diagnostic",
+    hospital: "Apex University Health Care",
+    doctorName: "Dr. Sarah Lin, MD",
+    doctorAddress: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+    diagnosisCode: "G43.909",
+    diagnosisDesc: "Intractable migraine with aura, non-responsive to NSAIDs",
+    prescriptions: "Sumatriptan 100mg, Ondansetron 4mg",
+    clinicalNotes: "Patient presents with episodic visual aura and unilateral hemicrania. MRI brain demonstrates no acute mass effect or ischemia."
+  },
+  {
+    id: "preset-cardio",
+    title: "24-Hour Ambulatory Holter ECG & Stress Test",
+    category: "Diagnostic",
+    hospital: "Mayo Memorial Research Clinic",
+    doctorName: "Dr. Marcus Brody, MD",
+    doctorAddress: "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
+    diagnosisCode: "I49.9",
+    diagnosisDesc: "Cardiac arrhythmia, unspecified",
+    prescriptions: "Metoprolol Tartrate 25mg BID",
+    clinicalNotes: "Continuous 2-channel ECG monitoring over 24 hours. Rare premature ventricular contractions (<0.2%), normal QT interval."
+  },
+  {
+    id: "preset-lab",
+    title: "Comprehensive Metabolic Panel & Fasting Lipid Profile",
+    category: "Lab Result",
+    hospital: "Stanford Biomedical Pavilion",
+    doctorName: "Dr. Elena Rostova, PhD",
+    doctorAddress: "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65",
+    diagnosisCode: "E78.5",
+    diagnosisDesc: "Hyperlipidemia, unspecified",
+    prescriptions: "Atorvastatin Calcium 20mg",
+    clinicalNotes: "Elevated serum LDL cholesterol (142 mg/dL), triglycerides 160 mg/dL. Normal renal and hepatic panels."
+  },
+  {
+    id: "preset-endo",
+    title: "Diagnostic Esophagogastroduodenoscopy (EGD) & Biopsy",
+    category: "Surgical",
+    hospital: "St. Jude Metropolitan Hospital",
+    doctorName: "Dr. James Wilson, MD",
+    doctorAddress: "0x9965507D1a55bcC2695C58ba16FB37d819B0A4df",
+    diagnosisCode: "K29.7",
+    diagnosisDesc: "Gastritis, unspecified without bleeding",
+    prescriptions: "Pantoprazole 40mg, Sucralfate 1g",
+    clinicalNotes: "Endoscopic visualization of gastric mucosa showed mild antral erythema without ulceration. Biopsies obtained for H. pylori testing."
+  }
+];
+
 // 4-leaf Poseidon Merkle tree for accredited hospitals (verified against Groth16 circuit)
 // Decimal Root: 8464722192574004154307101905833932193053562928359214660920880496777686120894
 export const HOSPITAL_MERKLE_ROOT = "0x12b6dcec349f74e997d13b582eb6cdad2860e0c0cc3e9aa3676404e4edbb79be";

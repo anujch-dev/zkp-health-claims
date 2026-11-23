@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, ShieldCheck, Cpu, EyeOff, Lock, CheckCircle2, AlertTriangle, FileCheck, RefreshCw, Copy, Check, ArrowRight, User, Phone, Hash } from 'lucide-react';
+import { Building2, ShieldCheck, Cpu, EyeOff, Lock, CheckCircle2, AlertTriangle, FileCheck, RefreshCw, Copy, Check, ArrowRight, User, Phone, Hash, ChevronDown, ChevronUp } from 'lucide-react';
 import { AccreditedHospital, InsurancePolicy, ClaimSubmission, ClaimPrivateInputs, TerminologyMode, UserRole, PatientProfile } from '../types';
 import { ACCREDITED_HOSPITALS, HOSPITAL_MERKLE_ROOT } from '../fixtures/mockData';
 import { generateHealthClaimProof, CircuitValidationResult } from '../lib/zkp';
@@ -34,6 +34,7 @@ export const HospitalView: React.FC<HospitalViewProps> = ({
   const [diagnosisNotes, setDiagnosisNotes] = useState<string>('Intractable migraine with aura, non-responsive to NSAIDs. Scheduled contrast MRI.');
   const [prescriptions, setPrescriptions] = useState<string>('Sumatriptan 100mg, Ondansetron 4mg');
   const [claimNonce, setClaimNonce] = useState<string>(() => '0x' + Math.random().toString(16).slice(2, 10));
+  const [showAdvancedCrypto, setShowAdvancedCrypto] = useState(false);
 
   // Sync with active patient profile if selected from Patient Login / Multi-User Test
   useEffect(() => {
@@ -443,39 +444,54 @@ export const HospitalView: React.FC<HospitalViewProps> = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-clinical-text mb-1">
-                  Claim Treatment Date
-                </label>
-                <input
-                  type="date"
-                  value={claimDate}
-                  onChange={(e) => setClaimDate(e.target.value)}
-                  className="w-full bg-white border border-alabaster-300 rounded-xl px-3 py-2 text-xs text-clinical-text font-mono focus:outline-none focus:border-sage-600"
-                />
-              </div>
+            <div>
+              <label className="block text-xs font-medium text-clinical-text mb-1">
+                Claim Treatment Date
+              </label>
+              <input
+                type="date"
+                value={claimDate}
+                onChange={(e) => setClaimDate(e.target.value)}
+                className="w-full bg-white border border-alabaster-300 rounded-xl px-3 py-2 text-xs text-clinical-text font-mono focus:outline-none focus:border-sage-600"
+              />
+            </div>
 
-              <div>
-                <label className="block text-xs font-medium text-clinical-text mb-1">
-                  Unique Replay Nonce
-                </label>
-                <div className="flex space-x-2">
+            {/* Collapsible Advanced Cryptographic Parameters */}
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={() => setShowAdvancedCrypto(!showAdvancedCrypto)}
+                className="text-[11px] text-sage-700 hover:text-sage-900 underline flex items-center gap-1 cursor-pointer"
+              >
+                <span>{showAdvancedCrypto ? "Hide Cryptographic Parameters" : "View Cryptographic Replay Nonce & Parameters (Advanced)"}</span>
+                {showAdvancedCrypto ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              </button>
+
+              {showAdvancedCrypto && (
+                <div className="mt-2.5 p-3 rounded-xl bg-alabaster-50 border border-alabaster-200 text-xs space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-clinical-muted font-sans text-[11px]">Unique Replay Protection Nonce:</span>
+                    <button
+                      type="button"
+                      onClick={() => setClaimNonce('0x' + Math.random().toString(16).slice(2, 10))}
+                      className="text-[10px] text-sage-700 hover:text-sage-900 font-sans flex items-center gap-1 cursor-pointer"
+                    >
+                      <RefreshCw className="h-2.5 w-2.5" />
+                      Regenerate
+                    </button>
+                  </div>
                   <input
                     type="text"
                     value={claimNonce}
                     readOnly
-                    className="w-full bg-alabaster-50 border border-alabaster-300 rounded-xl px-3 py-2 text-xs text-clinical-muted font-mono"
+                    className="w-full bg-white border border-alabaster-300 rounded-lg px-2.5 py-1 text-[11px] font-mono text-clinical-muted"
                   />
-                  <button
-                    onClick={() => setClaimNonce('0x' + Math.random().toString(16).slice(2, 10))}
-                    className="p-2 rounded-xl bg-alabaster-100 hover:bg-alabaster-200 text-clinical-text border border-alabaster-300 transition"
-                    title="Generate New Nonce"
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                  </button>
+                  <div className="flex items-center justify-between text-[10px] text-clinical-muted font-sans pt-1 border-t border-alabaster-200">
+                    <span>Merkle Leaf: <strong>#{selectedHospital.leafIndex}</strong></span>
+                    <span>Witness Blinded: <strong>Diagnosis + Notes</strong></span>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
 
