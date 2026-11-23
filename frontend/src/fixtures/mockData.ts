@@ -1,10 +1,65 @@
-import { HealthRecord, InsurancePolicy, AccreditedHospital, ClaimSubmission, AuditEvent } from '../types';
+import { HealthRecord, InsurancePolicy, AccreditedHospital, ClaimSubmission, AuditEvent, PatientProfile } from '../types';
 
 export const PATIENT_ADDRESS = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8";
 export const INSURER_ADDRESS = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
 export const REGISTRY_CONTRACT_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
 export const VERIFIER_CONTRACT_ADDRESS = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
 export const SETTLEMENT_CONTRACT_ADDRESS = "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0";
+
+export interface PresetPatientProfile extends PatientProfile {
+  primaryDiagnosis: string;
+  primaryDiagnosisCode: string;
+  primaryProcedure: string;
+  primaryProcedureCode: string;
+  defaultRecordIds: string[];
+  avatarInitial: string;
+  summary: string;
+}
+
+export const PRESET_PATIENTS: PresetPatientProfile[] = [
+  {
+    name: "Sarah Chen",
+    phone: "+1 (555) 234-8901",
+    hospital: "Apex University Health Care",
+    patientId: "PT-880129",
+    isLoggedIn: true,
+    primaryDiagnosis: "Intractable migraine with aura",
+    primaryDiagnosisCode: "G43.909",
+    primaryProcedure: "Brain MRI with & without Contrast",
+    primaryProcedureCode: "CPT-70553",
+    defaultRecordIds: ["rec-101"],
+    avatarInitial: "SC",
+    summary: "Neurology Patient · Contrast Cranial MRI"
+  },
+  {
+    name: "David Kim",
+    phone: "+1 (555) 492-1102",
+    hospital: "Mayo Memorial Research Clinic",
+    patientId: "PT-449102",
+    isLoggedIn: true,
+    primaryDiagnosis: "Cardiac arrhythmia, unspecified",
+    primaryDiagnosisCode: "I49.9",
+    primaryProcedure: "12-Lead Electrocardiogram (ECG)",
+    primaryProcedureCode: "CPT-93000",
+    defaultRecordIds: ["rec-102"],
+    avatarInitial: "DK",
+    summary: "Cardiology Patient · 24-Hr Ambulatory Holter"
+  },
+  {
+    name: "Elena Rostova",
+    phone: "+1 (555) 778-9321",
+    hospital: "Stanford Biomedical Pavilion",
+    patientId: "PT-993812",
+    isLoggedIn: true,
+    primaryDiagnosis: "Hyperlipidemia, unspecified",
+    primaryDiagnosisCode: "E78.5",
+    primaryProcedure: "Outpatient Comprehensive Consultation",
+    primaryProcedureCode: "CPT-99214",
+    defaultRecordIds: ["rec-103"],
+    avatarInitial: "ER",
+    summary: "Endocrinology Patient · Lipid Screening"
+  }
+];
 
 // 4-leaf Poseidon Merkle tree for accredited hospitals (verified against Groth16 circuit)
 // Decimal Root: 8464722192574004154307101905833932193053562928359214660920880496777686120894
@@ -66,7 +121,7 @@ export const INITIAL_POLICY: InsurancePolicy = {
   id: "pol-001",
   policyNumber: "POL-ZKP-2026-9941",
   patientAddress: PATIENT_ADDRESS,
-  patientName: "Alice Vance",
+  patientName: "Sarah Chen",
   insurerName: "AetherShield Decentralized Health Underwriters",
   maxCoverageLimit: 50000,
   remainingCoverage: 44200,
@@ -87,6 +142,8 @@ export const INITIAL_POLICY: InsurancePolicy = {
 export const INITIAL_HEALTH_RECORDS: HealthRecord[] = [
   {
     id: "rec-101",
+    patientName: "Sarah Chen",
+    patientId: "PT-880129",
     title: "Neuro-Radiology Cranial MRI Scan",
     category: "Diagnostic",
     date: "2026-11-12",
@@ -114,6 +171,8 @@ export const INITIAL_HEALTH_RECORDS: HealthRecord[] = [
   },
   {
     id: "rec-102",
+    patientName: "David Kim",
+    patientId: "PT-449102",
     title: "Cardiac Holter & Stress Telemetry",
     category: "Diagnostic",
     date: "2026-09-04",
@@ -141,6 +200,8 @@ export const INITIAL_HEALTH_RECORDS: HealthRecord[] = [
   },
   {
     id: "rec-103",
+    patientName: "Elena Rostova",
+    patientId: "PT-993812",
     title: "Comprehensive Metabolic & Lipid Profile",
     category: "Lab Result",
     date: "2026-08-20",

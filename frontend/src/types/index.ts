@@ -21,6 +21,19 @@ export interface DoctorAccess {
   isActive: boolean;
 }
 
+export interface PatientProfile {
+  name: string;
+  phone: string;
+  hospital: string;
+  patientId: string;
+  isLoggedIn?: boolean;
+  primaryDiagnosis?: string;
+  primaryDiagnosisCode?: string;
+  primaryProcedure?: string;
+  primaryProcedureCode?: string;
+  avatarInitial?: string;
+}
+
 export interface HealthRecord {
   id: string;
   title: string;
@@ -40,6 +53,8 @@ export interface HealthRecord {
   diagnosisDesc?: string;
   prescriptions?: string[];
   authorizedDoctors: DoctorAccess[];
+  patientName?: string;
+  patientId?: string;
 }
 
 export interface CoveredProcedure {
