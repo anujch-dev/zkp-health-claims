@@ -14,6 +14,7 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({
   currentRole,
   onSelectRole,
+  isBackendOnline,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -131,6 +132,14 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Right Utilities: Clean Minimal Role Status & Active Indicator */}
         <div className="hidden sm:flex items-center space-x-3">
+          {/* Live Backend Connection Indicator */}
+          <div className="px-3 py-1.5 rounded-sm bg-[#FAF9F6] border border-[#E7E1D7] text-xs font-medium flex items-center space-x-2">
+            <span className={`h-2 w-2 rounded-full ${isBackendOnline ? 'bg-emerald-600' : 'bg-amber-400'}`}></span>
+            <span className="text-[11px] text-[#292D29]">
+              {isBackendOnline ? 'Backend Online' : 'Connecting...'}
+            </span>
+          </div>
+
           <div className="px-3.5 py-1.5 rounded-sm bg-[#FAF9F6] border border-[#E7E1D7] text-xs text-[#294638] font-medium flex items-center space-x-2">
             <span className="h-2 w-2 rounded-full bg-[#294638]"></span>
             <span>{getRoleLabel()}</span>

@@ -4,8 +4,16 @@
  * with automatic fallback to client-side cryptographic proving.
  */
 
-const RAW_URL: string = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5001/api';
+const isLocalhost = typeof window !== 'undefined' && 
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+const DEFAULT_URL = isLocalhost 
+  ? 'http://localhost:5001/api' 
+  : 'https://zkp-health-claims.onrender.com/api';
+
+const RAW_URL: string = (import.meta as any).env?.VITE_API_URL || DEFAULT_URL;
 let CLEAN_URL = RAW_URL.trim().replace(/\/+$/, '');
+
 // Upgrade non-localhost http to https to prevent mixed content and 308 redirects on Vercel/Render
 if (CLEAN_URL.startsWith('http://') && !CLEAN_URL.includes('localhost') && !CLEAN_URL.includes('127.0.0.1')) {
   CLEAN_URL = CLEAN_URL.replace('http://', 'https://');
