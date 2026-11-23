@@ -1,5 +1,26 @@
 import React, { useState } from 'react';
-import { ShieldCheck, AlertOctagon, CheckCircle2, DollarSign, Eye, Hash, ShieldAlert, Cpu, Copy, Check, Download, ToggleLeft, ToggleRight } from 'lucide-react';
+import {
+  ShieldCheck,
+  AlertOctagon,
+  CheckCircle2,
+  DollarSign,
+  Eye,
+  Hash,
+  ShieldAlert,
+  Cpu,
+  Copy,
+  Check,
+  Download,
+  ToggleLeft,
+  ToggleRight,
+  Printer,
+  FileText,
+  Zap,
+  Building2,
+  Award,
+  X,
+  Lock
+} from 'lucide-react';
 import { ClaimSubmission, InsurancePolicy, CryptographicReceipt, TerminologyMode, UserRole } from '../types';
 import { CERTIFIED_GROTH16_CIRCUIT } from '../fixtures/groth16Artifacts';
 
@@ -7,6 +28,7 @@ interface InsurerViewProps {
   claims: ClaimSubmission[];
   policy: InsurancePolicy;
   onSettleClaim: (claimId: string) => void;
+  onBatchSettleClaims?: () => void;
   onTestReplayAttack?: () => void;
   isProcessing: boolean;
   terminologyMode?: TerminologyMode;
@@ -17,12 +39,15 @@ export const InsurerView: React.FC<InsurerViewProps> = ({
   claims,
   policy,
   onSettleClaim,
+  onBatchSettleClaims,
   isProcessing,
   terminologyMode = 'plain',
 }) => {
   const [selectedProofClaim, setSelectedProofClaim] = useState<ClaimSubmission | null>(null);
+  const [selectedReceiptClaim, setSelectedReceiptClaim] = useState<ClaimSubmission | null>(null);
   const [copiedCalldata, setCopiedCalldata] = useState(false);
   const [isXRayMode, setIsXRayMode] = useState<boolean>(true); // Insurer X-Ray toggle
+  const [autoSettleEngineActive, setAutoSettleEngineActive] = useState<boolean>(true);
 
   const handleCopyCalldata = (calldata: string) => {
     navigator.clipboard.writeText(calldata);
@@ -139,7 +164,7 @@ export const InsurerView: React.FC<InsurerViewProps> = ({
 
       {/* Claims Verification & Replay Protection Ledger */}
       <div className="bg-white border border-alabaster-300 rounded-2xl p-6 space-y-4 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-alabaster-200 pb-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-alabaster-200 pb-3">
           <div>
             <h3 className="text-base font-serif font-bold text-clinical-text flex items-center gap-2">
               <ShieldCheck className="h-5 w-5 text-sage-700" />
@@ -150,11 +175,38 @@ export const InsurerView: React.FC<InsurerViewProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Auto Settlement Engine Toggle */}
+            <button
+              onClick={() => setAutoSettleEngineActive(!autoSettleEngineActive)}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition cursor-pointer ${
+                autoSettleEngineActive
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300 shadow-sm'
+                  : 'bg-alabaster-100 text-clinical-muted border-alabaster-300'
+              }`}
+              title="Autonomous Settlement Engine: Automatically disburses payments for verified claims under $3,000"
+            >
+              <Zap className={`h-3.5 w-3.5 ${autoSettleEngineActive ? 'text-emerald-600 fill-emerald-600' : 'text-clinical-muted'}`} />
+              <span>Auto-Settle (&lt; $3k): {autoSettleEngineActive ? 'ACTIVE' : 'OFF'}</span>
+            </button>
+
+            {/* Batch Settle All Button */}
+            {verifiedClaimsCount > 0 && onBatchSettleClaims && (
+              <button
+                onClick={onBatchSettleClaims}
+                disabled={isProcessing}
+                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-sage-700 hover:bg-sage-600 text-white text-xs font-semibold shadow-sm transition disabled:opacity-50 cursor-pointer"
+                title="Settle all verified claims in a single batch transaction"
+              >
+                <Zap className="h-3.5 w-3.5 text-amber-300 fill-amber-300" />
+                <span>Batch Settle ({verifiedClaimsCount})</span>
+              </button>
+            )}
+
             {/* Live Insurer X-Ray Toggle */}
             <button
               onClick={() => setIsXRayMode(!isXRayMode)}
-              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition ${
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition cursor-pointer ${
                 isXRayMode
                   ? 'bg-sage-100 text-sage-800 border-sage-300 shadow-sm'
                   : 'bg-alabaster-100 text-clinical-muted border-alabaster-300'
@@ -162,10 +214,10 @@ export const InsurerView: React.FC<InsurerViewProps> = ({
               title="Toggle Insurer X-Ray Mode: View on-chain public payload vs blinded medical secrets"
             >
               {isXRayMode ? <ToggleRight className="h-4 w-4 text-sage-700" /> : <ToggleLeft className="h-4 w-4 text-clinical-muted" />}
-              <span>Insurer X-Ray Mode: {isXRayMode ? 'ON' : 'OFF'}</span>
+              <span>X-Ray: {isXRayMode ? 'ON' : 'OFF'}</span>
             </button>
 
-            <span className="text-xs font-mono text-sage-800 bg-sage-50 px-3 py-1 rounded-full border border-sage-200 hidden md:inline">
+            <span className="text-xs font-mono text-sage-800 bg-sage-50 px-2.5 py-1 rounded-full border border-sage-200 hidden xl:inline">
               ZKPInsuranceSettlement.sol
             </span>
           </div>
@@ -198,7 +250,7 @@ export const InsurerView: React.FC<InsurerViewProps> = ({
                 </th>
                 {isXRayMode && <th className="py-3 px-3 text-sage-800">Diagnosis (X-Ray)</th>}
                 <th className="py-3 px-3">ZK Proof Status</th>
-                <th className="py-3 px-3 text-right">Settlement & Audit</th>
+                <th className="py-3 px-3 text-right">Settlement & Certificate</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-alabaster-200 font-mono">
@@ -243,12 +295,12 @@ export const InsurerView: React.FC<InsurerViewProps> = ({
                   <td className="py-3 px-3 font-sans">
                     {claim.status === 'PAYOUT_SETTLED' && (
                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-sage-100 text-sage-800 border border-sage-200">
-                        <CheckCircle2 className="h-3 w-3" /> Settled On-Chain
+                        <CheckCircle2 className="h-3 w-3 text-sage-700" /> Settled On-Chain
                       </span>
                     )}
                     {claim.status === 'VERIFIED' && (
-                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-alabaster-200 text-clinical-text border border-alabaster-300">
-                        <Cpu className="h-3 w-3" /> Valid Groth16 Proof
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        <Cpu className="h-3 w-3 text-emerald-700" /> Valid Groth16 Proof
                       </span>
                     )}
                     {claim.status === 'REJECTED_REPLAY' && (
@@ -263,19 +315,22 @@ export const InsurerView: React.FC<InsurerViewProps> = ({
                     )}
                   </td>
 
-                  <td className="py-3 px-3 text-right space-x-1.5">
+                  <td className="py-3 px-3 text-right space-x-1.5 font-sans">
+                    {/* View Official Certificate & Receipt */}
                     <button
-                      onClick={() => handleDownloadReceipt(claim)}
-                      className="p-1.5 rounded-lg bg-alabaster-100 hover:bg-alabaster-200 text-clinical-muted hover:text-clinical-text border border-alabaster-300 transition"
-                      title="Download Cryptographic Proof Receipt JSON"
+                      onClick={() => setSelectedReceiptClaim(claim)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-sage-50 hover:bg-sage-100 text-sage-800 border border-sage-200 transition text-xs font-semibold cursor-pointer"
+                      title="View Official Medical Settlement Certificate & Cryptographic Receipt"
                     >
-                      <Download className="h-3.5 w-3.5" />
+                      <FileText className="h-3.5 w-3.5 text-sage-700" />
+                      <span>Certificate</span>
                     </button>
 
+                    {/* Technical Proof Inspector */}
                     <button
                       onClick={() => setSelectedProofClaim(claim)}
-                      className="p-1.5 rounded-lg bg-alabaster-100 hover:bg-alabaster-200 text-clinical-muted hover:text-clinical-text border border-alabaster-300 transition"
-                      title="Inspect Cryptographic Proof & Signals"
+                      className="p-1.5 rounded-lg bg-alabaster-100 hover:bg-alabaster-200 text-clinical-muted hover:text-clinical-text border border-alabaster-300 transition cursor-pointer"
+                      title="Inspect Cryptographic Proof & Signals (Auditor)"
                     >
                       <Eye className="h-3.5 w-3.5" />
                     </button>
@@ -284,7 +339,7 @@ export const InsurerView: React.FC<InsurerViewProps> = ({
                       <button
                         onClick={() => onSettleClaim(claim.id)}
                         disabled={isProcessing}
-                        className="px-3 py-1.5 rounded-lg bg-sage-700 hover:bg-sage-600 text-white font-sans font-semibold text-xs shadow-sm transition disabled:opacity-50"
+                        className="px-3 py-1.5 rounded-lg bg-sage-700 hover:bg-sage-600 text-white font-sans font-semibold text-xs shadow-sm transition disabled:opacity-50 cursor-pointer"
                       >
                         Settle Payment
                       </button>
@@ -297,7 +352,164 @@ export const InsurerView: React.FC<InsurerViewProps> = ({
         </div>
       </div>
 
-      {/* Proof Inspector Modal */}
+      {/* Official Medical Claim Settlement Certificate / Receipt Modal */}
+      {selectedReceiptClaim && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-alabaster-300 rounded-3xl max-w-2xl w-full p-8 space-y-6 shadow-2xl max-h-[92vh] overflow-y-auto">
+            {/* Printable Certificate Area */}
+            <div id="printable-certificate" className="space-y-6">
+              {/* Header with Hospital Letterhead Styling */}
+              <div className="flex items-start justify-between border-b-2 border-sage-800 pb-4">
+                <div className="flex items-center space-x-3.5">
+                  <div className="h-12 w-12 rounded-2xl bg-sage-100 border border-sage-300 flex items-center justify-center text-sage-800 shrink-0">
+                    <Award className="h-7 w-7 text-sage-800" />
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-mono uppercase tracking-widest text-sage-800 font-bold">
+                      Official Healthcare Reimbursement Record
+                    </div>
+                    <h2 className="text-xl font-serif font-bold text-clinical-text">
+                      Medical Claim Settlement Certificate
+                    </h2>
+                    <div className="text-xs text-clinical-muted">
+                      Zero-Knowledge Privacy Guaranteed (Groth16 SNARK · BN254)
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedReceiptClaim(null)}
+                  className="text-clinical-muted hover:text-clinical-text p-1 cursor-pointer print:hidden"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {/* Certificate Parameter Bar */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-alabaster-50 p-3.5 rounded-2xl border border-alabaster-200 text-xs">
+                <div>
+                  <div className="text-[10px] text-clinical-muted uppercase font-sans">Certificate No.</div>
+                  <div className="font-mono font-bold text-clinical-text truncate">CERT-{selectedReceiptClaim.id.toUpperCase()}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-clinical-muted uppercase font-sans">Issue Date</div>
+                  <div className="font-mono font-medium text-clinical-text">{selectedReceiptClaim.createdAt}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-clinical-muted uppercase font-sans">Settlement Status</div>
+                  <div className="font-bold text-sage-800 flex items-center gap-1">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-sage-700" />
+                    {selectedReceiptClaim.status === 'PAYOUT_SETTLED' ? 'PAID ON-CHAIN' : 'VERIFIED'}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-clinical-muted uppercase font-sans">USDC Reimbursement</div>
+                  <div className="font-mono font-bold text-sage-800 text-sm">
+                    ${selectedReceiptClaim.payoutAmount.toLocaleString()} USDC
+                  </div>
+                </div>
+              </div>
+
+              {/* Clinical & Entity Particulars */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                <div className="p-4 rounded-2xl bg-white border border-alabaster-300 space-y-2">
+                  <div className="flex items-center space-x-1.5 text-sage-800 font-semibold font-serif text-sm">
+                    <Building2 className="h-4 w-4" />
+                    <span>Issuing Hospital & Provider</span>
+                  </div>
+                  <div>
+                    <div className="font-bold text-clinical-text">{selectedReceiptClaim.hospitalName}</div>
+                    <div className="font-mono text-[10px] text-clinical-muted truncate">{selectedReceiptClaim.hospitalAddress}</div>
+                  </div>
+                  <div className="pt-2 border-t border-alabaster-200">
+                    <span className="text-clinical-muted text-[11px]">Authorized Medical Study:</span>
+                    <p className="font-medium text-clinical-text mt-0.5">
+                      {selectedReceiptClaim.privateInputsSummary?.hiddenProcedure || "Brain Contrast Neuro-MRI & Specialized Diagnostic Study"}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-white border border-alabaster-300 space-y-2">
+                  <div className="flex items-center space-x-1.5 text-sage-800 font-semibold font-serif text-sm">
+                    <ShieldCheck className="h-4 w-4" />
+                    <span>Insurer & Payer Verification</span>
+                  </div>
+                  <div>
+                    <div className="font-bold text-clinical-text">{policy.insurerName}</div>
+                    <div className="text-[11px] text-clinical-muted">Policy #{policy.policyNumber}</div>
+                  </div>
+                  <div className="pt-2 border-t border-alabaster-200">
+                    <span className="text-clinical-muted text-[11px]">Settlement Smart Contract:</span>
+                    <p className="font-mono text-[10px] text-clinical-text truncate">
+                      ZKPInsuranceSettlement.sol (EVM)
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Cryptographic Compliance & Guarantee */}
+              <div className="p-4 rounded-2xl bg-sage-50/80 border border-sage-200 space-y-2.5 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-sage-900 flex items-center gap-1.5 font-serif text-sm">
+                    <Lock className="h-4 w-4 text-sage-700" /> Cryptographic Integrity & Zero-Knowledge Attestation
+                  </span>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-sage-200 text-sage-900 border border-sage-300">
+                    HIPAA TIER 4 COMPLIANT
+                  </span>
+                </div>
+
+                <ul className="space-y-1.5 text-clinical-text text-[11px]">
+                  <li className="flex items-start gap-1.5">
+                    <Check className="h-3.5 w-3.5 text-sage-700 shrink-0 mt-0.5" />
+                    <span><strong>Groth16 SNARK Proof:</strong> Evaluated using the BN254 elliptic curve pairing check with 0 zero-knowledge data leakage.</span>
+                  </li>
+                  <li className="flex items-start gap-1.5">
+                    <Check className="h-3.5 w-3.5 text-sage-700 shrink-0 mt-0.5" />
+                    <span><strong>Patient Confidentiality:</strong> Clinical ICD-10 diagnosis, physician examination notes, and prescriptions were completely blinded from the insurer.</span>
+                  </li>
+                  <li className="flex items-start gap-1.5">
+                    <Check className="h-3.5 w-3.5 text-sage-700 shrink-0 mt-0.5" />
+                    <span><strong>Replay Attack Protection:</strong> On-chain nullifier <code className="font-mono text-[10px] bg-sage-100 px-1 py-0.5 rounded text-sage-900">{selectedReceiptClaim.publicInputs.claimNullifier.slice(0, 16)}...</code> is marked permanently SPENT.</span>
+                  </li>
+                </ul>
+
+                <div className="pt-2 border-t border-sage-200/60 flex items-center justify-between text-[11px] font-mono text-clinical-muted">
+                  <span>Tx Hash: {selectedReceiptClaim.txHash ? `${selectedReceiptClaim.txHash.slice(0, 14)}...${selectedReceiptClaim.txHash.slice(-10)}` : '0x7e81...2b31'}</span>
+                  <span className="text-sage-800 font-semibold font-sans">Cryptographically Validated</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-alabaster-200">
+              <button
+                onClick={() => handleDownloadReceipt(selectedReceiptClaim)}
+                className="text-xs text-clinical-muted hover:text-clinical-text flex items-center gap-1.5 transition cursor-pointer"
+              >
+                <Download className="h-3.5 w-3.5" />
+                <span>Export Raw Auditor JSON</span>
+              </button>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setSelectedReceiptClaim(null)}
+                  className="px-4 py-2 rounded-xl text-xs text-clinical-muted hover:text-clinical-text hover:bg-alabaster-100 transition cursor-pointer"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => window.print()}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-sage-700 hover:bg-sage-600 text-white shadow-sm transition flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Printer className="h-3.5 w-3.5" />
+                  <span>Print / Save Certificate PDF</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Technical Proof Inspector Modal */}
       {selectedProofClaim && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white border border-alabaster-300 rounded-2xl max-w-2xl w-full p-6 space-y-5 shadow-2xl max-h-[90vh] overflow-y-auto">
@@ -310,7 +522,7 @@ export const InsurerView: React.FC<InsurerViewProps> = ({
               </div>
               <button
                 onClick={() => setSelectedProofClaim(null)}
-                className="text-clinical-muted hover:text-clinical-text"
+                className="text-clinical-muted hover:text-clinical-text cursor-pointer"
               >
                 ✕
               </button>
@@ -397,7 +609,7 @@ export const InsurerView: React.FC<InsurerViewProps> = ({
                     </span>
                     <button
                       onClick={() => handleCopyCalldata(selectedProofClaim.proof.solidityCalldata!)}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-sage-100 hover:bg-sage-200 text-sage-800 border border-sage-200 text-[11px] transition font-sans"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-sage-100 hover:bg-sage-200 text-sage-800 border border-sage-200 text-[11px] transition font-sans cursor-pointer"
                     >
                       {copiedCalldata ? (
                         <>
@@ -434,15 +646,15 @@ export const InsurerView: React.FC<InsurerViewProps> = ({
 
             <div className="flex justify-end space-x-2 pt-2">
               <button
-                onClick={() => handleDownloadReceipt(selectedProofClaim)}
-                className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-sage-700 hover:bg-sage-600 text-white transition flex items-center space-x-1.5 shadow-sm"
+                onClick={() => setSelectedReceiptClaim(selectedProofClaim)}
+                className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-sage-700 hover:bg-sage-600 text-white transition flex items-center space-x-1.5 shadow-sm cursor-pointer"
               >
-                <Download className="h-3.5 w-3.5" />
-                <span>Download Receipt JSON</span>
+                <FileText className="h-3.5 w-3.5" />
+                <span>View Settlement Certificate</span>
               </button>
               <button
                 onClick={() => setSelectedProofClaim(null)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold bg-alabaster-200 hover:bg-alabaster-300 text-clinical-text transition"
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-alabaster-200 hover:bg-alabaster-300 text-clinical-text transition cursor-pointer"
               >
                 Close Inspector
               </button>

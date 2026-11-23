@@ -342,6 +342,47 @@ export function App() {
     }, 700);
   };
 
+  const handleBatchSettleClaims = () => {
+    const verifiedClaims = claims.filter(c => c.status === 'VERIFIED');
+    if (verifiedClaims.length === 0) return;
+    setIsProcessing(true);
+    addLog(`[Insurer Batch Engine] Settling ${verifiedClaims.length} verified claims in single on-chain transaction batch...`);
+
+    setTimeout(() => {
+      let totalDisbursed = 0;
+      setClaims(prev => prev.map(c => {
+        if (c.status === 'VERIFIED') {
+          totalDisbursed += c.payoutAmount;
+          return {
+            ...c,
+            status: 'PAYOUT_SETTLED',
+            txHash: '0x' + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')
+          };
+        }
+        return c;
+      }));
+
+      setPolicy(prev => ({
+        ...prev,
+        remainingCoverage: Math.max(0, prev.remainingCoverage - totalDisbursed)
+      }));
+
+      const audit: AuditEvent = {
+        id: `aud-${Date.now()}`,
+        timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+        actorRole: 'insurer',
+        actorAddress: SETTLEMENT_CONTRACT_ADDRESS,
+        action: 'Batch Claims Settled',
+        details: `Batch disbursed $${totalDisbursed.toLocaleString()} USDC across ${verifiedClaims.length} claims via Groth16.`,
+        badge: 'success'
+      };
+      setAuditLogs(prev => [audit, ...prev]);
+      addToast('success', 'Batch Settlement Complete', `Disbursed $${totalDisbursed.toLocaleString()} USDC for ${verifiedClaims.length} verified claims.`);
+      addLog(`[SUCCESS] Batch settlement completed for ${verifiedClaims.length} claims ($${totalDisbursed.toLocaleString()} USDC total).`);
+      setIsProcessing(false);
+    }, 700);
+  };
+
   // Guided One-Click Judge Scenarios
   const handleRunValidClaim = async () => {
     setIsProcessing(true);
@@ -675,6 +716,7 @@ export function App() {
             claims={claims}
             policy={policy}
             onSettleClaim={handleSettleClaim}
+            onBatchSettleClaims={handleBatchSettleClaims}
             onTestReplayAttack={handleTestReplayAttack}
             isProcessing={isProcessing}
             terminologyMode={terminologyMode}
