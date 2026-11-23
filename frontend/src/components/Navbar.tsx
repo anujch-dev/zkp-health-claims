@@ -1,14 +1,22 @@
 import React from 'react';
-import { Shield, Lock, FileCode, ExternalLink } from 'lucide-react';
-import { UserRole } from '../types';
+import { Shield, Lock, FileCode, ExternalLink, Sparkles, Sliders } from 'lucide-react';
+import { UserRole, TerminologyMode } from '../types';
 
 interface NavbarProps {
   currentRole: UserRole;
   walletBalance: string;
   onSelectRole?: (role: UserRole) => void;
+  terminologyMode: TerminologyMode;
+  onToggleTerminology: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ currentRole, walletBalance, onSelectRole }) => {
+export const Navbar: React.FC<NavbarProps> = ({
+  currentRole,
+  walletBalance,
+  onSelectRole,
+  terminologyMode,
+  onToggleTerminology,
+}) => {
   const navLinks: { id: UserRole; label: string }[] = [
     { id: 'demo', label: 'Overview' },
     { id: 'patient', label: 'Patient Vault' },
@@ -83,8 +91,33 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRole, walletBalance, onSe
         )}
 
         {/* Right Status Badges & Controls */}
-        <div className="flex items-center space-x-3">
-          <div className="hidden sm:flex items-center space-x-2 px-2.5 py-1 rounded-lg bg-alabaster-100 border border-alabaster-300 text-xs text-clinical-muted">
+        <div className="flex items-center space-x-2.5">
+          {/* Terminology Mode Toggle (Plain English vs Technical) */}
+          <button
+            onClick={onToggleTerminology}
+            className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-lg border text-xs font-semibold transition ${
+              terminologyMode === 'plain'
+                ? 'bg-sage-100 hover:bg-sage-200 text-sage-800 border-sage-300'
+                : 'bg-alabaster-200 hover:bg-alabaster-300 text-clinical-text border-alabaster-300'
+            }`}
+            title="Toggle between Plain English (Medical/Patient view) and Cryptographic (ZK Engineer/Judge view)"
+          >
+            {terminologyMode === 'plain' ? (
+              <>
+                <Sparkles className="h-3.5 w-3.5 text-sage-700" />
+                <span className="hidden sm:inline">Mode: Plain English</span>
+                <span className="sm:hidden">Plain</span>
+              </>
+            ) : (
+              <>
+                <Sliders className="h-3.5 w-3.5 text-clinical-muted" />
+                <span className="hidden sm:inline">Mode: ZK / Judge</span>
+                <span className="sm:hidden">Judge</span>
+              </>
+            )}
+          </button>
+
+          <div className="hidden md:flex items-center space-x-2 px-2.5 py-1 rounded-lg bg-alabaster-100 border border-alabaster-300 text-xs text-clinical-muted">
             <span className="h-2 w-2 rounded-full bg-emerald-600 animate-pulse"></span>
             <span className="font-medium text-clinical-text">Hardhat / EVM</span>
             <span className="text-alabaster-400 font-mono">|</span>

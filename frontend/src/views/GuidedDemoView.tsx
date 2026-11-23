@@ -15,7 +15,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { ArchitectureCard } from '../components/ArchitectureCard';
-import { UserRole } from '../types';
+import { UserRole, TerminologyMode } from '../types';
 
 interface GuidedDemoViewProps {
   onRunValidClaim: () => void;
@@ -26,6 +26,7 @@ interface GuidedDemoViewProps {
   onTestUnaccreditedHospital: () => void;
   onResetDemo?: () => void;
   onSelectRole?: (role: UserRole) => void;
+  terminologyMode?: TerminologyMode;
   isProcessing: boolean;
   demoLogs: string[];
 }
@@ -39,6 +40,7 @@ export const GuidedDemoView: React.FC<GuidedDemoViewProps> = ({
   onTestUnaccreditedHospital,
   onResetDemo,
   onSelectRole,
+  terminologyMode = 'plain',
   isProcessing,
   demoLogs,
 }) => {
@@ -213,6 +215,129 @@ export const GuidedDemoView: React.FC<GuidedDemoViewProps> = ({
           </div>
         </div>
 
+        {/* =========================================================================
+            1-CLICK INTERACTIVE STORY SCENARIOS (EASY USER ONBOARDING)
+            ========================================================================= */}
+        <div className="mt-8 p-6 rounded-3xl bg-gradient-to-r from-alabaster-50 via-white to-sage-50/50 border border-alabaster-300 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-alabaster-200 pb-3">
+            <div className="flex items-center space-x-2">
+              <Sparkles className="h-4 w-4 text-sage-700" />
+              <h3 className="text-base font-serif font-bold text-clinical-text">
+                1-Click Interactive Evaluation Stories
+              </h3>
+            </div>
+            <span className="text-[11px] font-mono px-2.5 py-0.5 rounded-full bg-sage-100 text-sage-800 border border-sage-200 font-semibold">
+              Instant End-to-End Simulation
+            </span>
+          </div>
+
+          <p className="text-xs text-clinical-muted leading-relaxed">
+            Select any real-world healthcare scenario below to evaluate how the Zero-Knowledge cryptographic pipeline and EVM smart contracts behave:
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3.5">
+            {/* Story 1 */}
+            <div
+              onClick={onRunValidClaim}
+              className="group cursor-pointer p-4 rounded-2xl bg-white border border-alabaster-300 hover:border-sage-400 hover:shadow-md transition space-y-2 flex flex-col justify-between"
+            >
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-lg">🩺</span>
+                  <span className="text-[10px] font-mono px-2 py-0.2 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold">
+                    VALID CLAIM
+                  </span>
+                </div>
+                <h4 className="text-xs font-serif font-bold text-clinical-text group-hover:text-sage-700 transition">
+                  Alice's Brain MRI ($2,400)
+                </h4>
+                <p className="text-[11px] text-clinical-muted leading-relaxed">
+                  Generates Groth16 proof & verifies policy without leaking intractable migraine diagnosis.
+                </p>
+              </div>
+              <div className="pt-2 border-t border-alabaster-100 flex items-center justify-between text-[11px] font-semibold text-sage-700">
+                <span>Run Valid Flow</span>
+                <ArrowRight className="h-3 w-3 group-hover:translate-x-0.5 transition" />
+              </div>
+            </div>
+
+            {/* Story 2 */}
+            <div
+              onClick={() => onSelectRole?.('patient')}
+              className="group cursor-pointer p-4 rounded-2xl bg-white border border-alabaster-300 hover:border-rose-400 hover:shadow-md transition space-y-2 flex flex-col justify-between"
+            >
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-lg">🚨</span>
+                  <span className="text-[10px] font-mono px-2 py-0.2 rounded bg-rose-50 text-rose-800 border border-rose-200 font-bold">
+                    EMERGENCY
+                  </span>
+                </div>
+                <h4 className="text-xs font-serif font-bold text-clinical-text group-hover:text-rose-700 transition">
+                  Trauma "Break-Glass"
+                </h4>
+                <p className="text-[11px] text-clinical-muted leading-relaxed">
+                  Incapacitated patient in ambulance; ER trauma clinician overrides access with on-chain audit.
+                </p>
+              </div>
+              <div className="pt-2 border-t border-alabaster-100 flex items-center justify-between text-[11px] font-semibold text-rose-700">
+                <span>Test Break-Glass</span>
+                <ArrowRight className="h-3 w-3 group-hover:translate-x-0.5 transition" />
+              </div>
+            </div>
+
+            {/* Story 3 */}
+            <div
+              onClick={() => onSelectRole?.('patient')}
+              className="group cursor-pointer p-4 rounded-2xl bg-white border border-alabaster-300 hover:border-amber-400 hover:shadow-md transition space-y-2 flex flex-col justify-between"
+            >
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-lg">💊</span>
+                  <span className="text-[10px] font-mono px-2 py-0.2 rounded bg-amber-50 text-amber-800 border border-amber-200 font-bold">
+                    SECRET-FREE RX
+                  </span>
+                </div>
+                <h4 className="text-xs font-serif font-bold text-clinical-text group-hover:text-amber-800 transition">
+                  Pharmacy QR Pass
+                </h4>
+                <p className="text-[11px] text-clinical-muted leading-relaxed">
+                  Patient proves valid doctor-signed prescription without exposing condition to pharmacist.
+                </p>
+              </div>
+              <div className="pt-2 border-t border-alabaster-100 flex items-center justify-between text-[11px] font-semibold text-amber-800">
+                <span>Open Rx QR Pass</span>
+                <ArrowRight className="h-3 w-3 group-hover:translate-x-0.5 transition" />
+              </div>
+            </div>
+
+            {/* Story 4 */}
+            <div
+              onClick={onTestReplayAttack}
+              className="group cursor-pointer p-4 rounded-2xl bg-white border border-alabaster-300 hover:border-slate-400 hover:shadow-md transition space-y-2 flex flex-col justify-between"
+            >
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-lg">🦹</span>
+                  <span className="text-[10px] font-mono px-2 py-0.2 rounded bg-slate-100 text-slate-800 border border-slate-200 font-bold">
+                    ATTACK REJECTED
+                  </span>
+                </div>
+                <h4 className="text-xs font-serif font-bold text-clinical-text group-hover:text-slate-700 transition">
+                  Replay / Double-Spend
+                </h4>
+                <p className="text-[11px] text-clinical-muted leading-relaxed">
+                  Malicious actor resubmits already-settled claim; contract reverts with ClaimAlreadyNullified.
+                </p>
+              </div>
+              <div className="pt-2 border-t border-alabaster-100 flex items-center justify-between text-[11px] font-semibold text-slate-700">
+                <span>Simulate Attack</span>
+                <ArrowRight className="h-3 w-3 group-hover:translate-x-0.5 transition" />
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Three Overlapping Bottom-Aligned Role Action Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mt-10">
           {/* Card 1: Patient Vault */}
@@ -342,11 +467,11 @@ export const GuidedDemoView: React.FC<GuidedDemoViewProps> = ({
                   <div className="space-y-2 text-[11px] text-clinical-text">
                     <div className="p-2 rounded-lg bg-white border border-sage-200">
                       <span className="text-clinical-muted block text-[10px]">Signal 0</span>
-                      <strong>approvedHospitalRoot</strong>
+                      <strong>{terminologyMode === 'plain' ? 'Hospital Network Accreditation' : 'approvedHospitalRoot'}</strong>
                     </div>
                     <div className="p-2 rounded-lg bg-white border border-sage-200">
                       <span className="text-clinical-muted block text-[10px]">Signal 1</span>
-                      <strong>policyCommitment</strong>
+                      <strong>{terminologyMode === 'plain' ? 'Tamper-Proof Policy Fingerprint' : 'policyCommitment'}</strong>
                     </div>
                     <div className="p-2 rounded-lg bg-white border border-sage-200">
                       <span className="text-clinical-muted block text-[10px]">Signal 2</span>
@@ -354,11 +479,11 @@ export const GuidedDemoView: React.FC<GuidedDemoViewProps> = ({
                     </div>
                     <div className="p-2 rounded-lg bg-white border border-sage-200">
                       <span className="text-clinical-muted block text-[10px]">Signal 3</span>
-                      <strong>claimTimestamp</strong> (Unix)
+                      <strong>{terminologyMode === 'plain' ? 'Treatment Date Timestamp' : 'claimTimestamp (Unix)'}</strong>
                     </div>
                     <div className="p-2 rounded-lg bg-white border border-sage-200">
                       <span className="text-clinical-muted block text-[10px]">Signal 4</span>
-                      <strong>claimNullifier</strong> (Replay ID)
+                      <strong>{terminologyMode === 'plain' ? 'Anti-Fraud Single-Use Barcode' : 'claimNullifier (Replay ID)'}</strong>
                     </div>
                   </div>
                 </div>
@@ -366,7 +491,9 @@ export const GuidedDemoView: React.FC<GuidedDemoViewProps> = ({
                 {/* Private Witnesses */}
                 <div className="bg-clinical-amberBg/40 border border-clinical-amberBorder rounded-2xl p-4 space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-clinical-amber font-sans">Private Witness</span>
+                    <span className="font-bold text-clinical-amber font-sans">
+                      {terminologyMode === 'plain' ? 'Secret Medical Data' : 'Private Witness'}
+                    </span>
                     <span className="text-[10px] px-2 py-0.2 rounded bg-clinical-amberBg text-clinical-amber font-bold">
                       [HIDDEN IN ZKP]
                     </span>
@@ -374,23 +501,33 @@ export const GuidedDemoView: React.FC<GuidedDemoViewProps> = ({
                   <div className="space-y-2 text-[11px] text-clinical-text">
                     <div className="p-2 rounded-lg bg-white border border-clinical-amberBorder/60">
                       <span className="text-clinical-muted block text-[10px]">Witness 0</span>
-                      <strong className="text-clinical-amber">diagnosisCode (ICD-10)</strong>
+                      <strong className="text-clinical-amber">
+                        {terminologyMode === 'plain' ? 'Diagnosis (ICD-10 Migraine)' : 'diagnosisCode (ICD-10)'}
+                      </strong>
                     </div>
                     <div className="p-2 rounded-lg bg-white border border-clinical-amberBorder/60">
                       <span className="text-clinical-muted block text-[10px]">Witness 1</span>
-                      <strong className="text-clinical-amber">procedureCode (CPT)</strong>
+                      <strong className="text-clinical-amber">
+                        {terminologyMode === 'plain' ? 'Treatment Procedure (CPT Brain MRI)' : 'procedureCode (CPT)'}
+                      </strong>
                     </div>
                     <div className="p-2 rounded-lg bg-white border border-clinical-amberBorder/60">
                       <span className="text-clinical-muted block text-[10px]">Witness 2</span>
-                      <strong className="text-clinical-amber">prescriptions & notes</strong>
+                      <strong className="text-clinical-amber">
+                        {terminologyMode === 'plain' ? 'Physician Notes & Prescriptions' : 'prescriptions & notes'}
+                      </strong>
                     </div>
                     <div className="p-2 rounded-lg bg-white border border-clinical-amberBorder/60">
                       <span className="text-clinical-muted block text-[10px]">Witness 3</span>
-                      <strong className="text-clinical-amber">patientSecretSalt</strong>
+                      <strong className="text-clinical-amber">
+                        {terminologyMode === 'plain' ? 'Patient Sovereign Secret Salt' : 'patientSecretSalt'}
+                      </strong>
                     </div>
                     <div className="p-2 rounded-lg bg-white border border-clinical-amberBorder/60">
                       <span className="text-clinical-muted block text-[10px]">Witness 4</span>
-                      <strong className="text-clinical-amber">merklePathElements</strong>
+                      <strong className="text-clinical-amber">
+                        {terminologyMode === 'plain' ? 'Hospital Accreditation Path' : 'merklePathElements'}
+                      </strong>
                     </div>
                   </div>
                 </div>

@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { Navbar } from './components/Navbar';
 import { RoleSwitcher } from './components/RoleSwitcher';
+import { WorkflowStepper } from './components/WorkflowStepper';
+import { ToastContainer } from './components/ToastContainer';
 import { GuidedDemoBanner } from './components/GuidedDemoBanner';
 import { PatientView } from './views/PatientView';
 import { HospitalView } from './views/HospitalView';
 import { InsurerView } from './views/InsurerView';
 import { GuidedDemoView } from './views/GuidedDemoView';
 import { ArchitectureView } from './views/ArchitectureView';
-import { UserRole, HealthRecord, InsurancePolicy, ClaimSubmission, AuditEvent, ClaimPrivateInputs } from './types';
+import { UserRole, HealthRecord, InsurancePolicy, ClaimSubmission, AuditEvent, ClaimPrivateInputs, TerminologyMode, ToastMessage } from './types';
 import {
   INITIAL_POLICY,
   INITIAL_HEALTH_RECORDS,
@@ -25,6 +27,8 @@ import { CERTIFIED_GROTH16_CIRCUIT } from './fixtures/groth16Artifacts';
 
 export function App() {
   const [currentRole, setCurrentRole] = useState<UserRole>('demo');
+  const [terminologyMode, setTerminologyMode] = useState<TerminologyMode>('plain');
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [records, setRecords] = useState<HealthRecord[]>(INITIAL_HEALTH_RECORDS);
   const [policy, setPolicy] = useState<InsurancePolicy>(INITIAL_POLICY);
   const [claims, setClaims] = useState<ClaimSubmission[]>(INITIAL_SETTLED_CLAIMS);
@@ -39,6 +43,18 @@ export function App() {
   ]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [walletBalance] = useState("24.50");
+
+  const addToast = (type: 'success' | 'error' | 'warning' | 'info', title: string, message: string) => {
+    const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    setToasts(prev => [...prev, { id, type, title, message }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 4500);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
 
   const addLog = (message: string) => {
     setDemoLogs(prev => [`[${new Date().toLocaleTimeString()}] ${message}`, ...prev]);
@@ -76,6 +92,7 @@ export function App() {
     };
     setAuditLogs(prev => [audit, ...prev]);
     addLog(`[Patient] Granted on-chain access key to ${role} ${doctorAddress.slice(0, 8)}...`);
+    addToast('success', 'Doctor Access Granted', `Granted ${doctorName} (${role}) access on-chain.`);
   };
 
   const handleRevokeAccess = (recordId: string, doctorAddress: string) => {
@@ -102,6 +119,7 @@ export function App() {
     };
     setAuditLogs(prev => [audit, ...prev]);
     addLog(`[Patient] Revoked doctor access for ${doctorAddress.slice(0, 8)}...`);
+    addToast('warning', 'Doctor Access Revoked', `Revoked permissions for doctor ${doctorAddress.slice(0, 8)}...`);
   };
 
   const handleAddRecord = (newRecord: HealthRecord) => {
@@ -117,6 +135,7 @@ export function App() {
     };
     setAuditLogs(prev => [audit, ...prev]);
     addLog(`[Patient] Anchored SHA-256 commitment for '${newRecord.title}' into HealthAccessRegistry.sol`);
+    addToast('success', 'Record Encrypted & Anchored', `Stored '${newRecord.title}' with AES-256-GCM. SHA-256 commitment on-chain.`);
   };
 
   const handleLogRecordView = (recordId: string, viewerAddress: string) => {
@@ -131,6 +150,7 @@ export function App() {
     };
     setAuditLogs(prev => [audit, ...prev]);
     addLog(`[On-Chain] Event RecordViewed(recordId=${recordId.slice(0, 8)}..., viewer=${viewerAddress.slice(0, 8)}...) emitted on HealthAccessRegistry.sol`);
+    addToast('info', 'RecordViewed Event Emitted', `Doctor access logged on-chain in HealthAccessRegistry.`);
   };
 
   const handleBreakGlassAccess = (recordId: string, reason: string, responderName: string, responderAddr: string) => {
@@ -147,6 +167,7 @@ export function App() {
     };
     setAuditLogs(prev => [audit, ...prev]);
     addLog(`[EMERGENCY BREAK-GLASS] Responder ${responderName} overrode access for Record #${recordId}. Reason: "${reason}" permanently committed on-chain.`);
+    addToast('error', 'Break-Glass Emergency Triggered', `Emergency access by ${responderName} committed permanently to audit trail.`);
   };
 
   const handleResetDemo = () => {
@@ -167,6 +188,18 @@ export function App() {
   // Hospital Actions
   const handleClaimSubmitted = (submission: ClaimSubmission) => {
     setClaims(prev => [submission, ...prev]);
+    const audit: AuditEvent = {
+      id: `aud-${Date.now()}`,
+      timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+      actorRole: 'hospital',
+      actorAddress: submission.hospitalAddress,
+      action: 'ZK Claim Submitted',
+      details: `Claim #${submission.id} broadcast with Groth16 proof ($${submission.payoutAmount.toLocaleString()})`,
+      badge: 'info',
+      txHash: submission.txHash
+    };
+    setAuditLogs(prev => [audit, ...prev]);
+    addToast('info', 'ZK Claim Submitted', `Proof for $${submission.payoutAmount.toLocaleString()} sent to smart contract.`);
     addLog(`[Hospital] Submitted Claim #${submission.id} with Groth16 Proof to Settlement Contract.`);
     addLog(`[Smart Contract] Public Nullifier registered: ${submission.publicInputs.claimNullifier.slice(0, 16)}...`);
   };
@@ -177,12 +210,13 @@ export function App() {
     addLog(`[Insurer] Verifying Groth16 pairing on ZKPInsuranceSettlement.sol...`);
 
     setTimeout(() => {
+      const newTxHash = '0x' + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
       setClaims(prev => prev.map(c => {
         if (c.id === claimId) {
           return {
             ...c,
             status: 'PAYOUT_SETTLED',
-            txHash: '0x' + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('')
+            txHash: newTxHash
           };
         }
         return c;
@@ -194,6 +228,18 @@ export function App() {
           ...prev,
           remainingCoverage: Math.max(0, prev.remainingCoverage - claim.payoutAmount)
         }));
+        const audit: AuditEvent = {
+          id: `aud-${Date.now()}`,
+          timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+          actorRole: 'insurer',
+          actorAddress: SETTLEMENT_CONTRACT_ADDRESS,
+          action: 'Groth16 Claim Settled',
+          details: `BN254 pairing verified. $${claim.payoutAmount.toLocaleString()} USDC released. Nullifier marked spent.`,
+          badge: 'success',
+          txHash: newTxHash
+        };
+        setAuditLogs(prev => [audit, ...prev]);
+        addToast('success', 'Claim Settled on Chain', `$${claim.payoutAmount.toLocaleString()} USDC disbursed. Nullifier marked spent.`);
       }
 
       setIsProcessing(false);
@@ -263,6 +309,19 @@ export function App() {
     setClaims(prev => [newClaim, ...prev]);
     setPolicy(prev => ({ ...prev, remainingCoverage: prev.remainingCoverage - 2400 }));
 
+    const audit: AuditEvent = {
+      id: `aud-${Date.now()}`,
+      timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+      actorRole: 'insurer',
+      actorAddress: SETTLEMENT_CONTRACT_ADDRESS,
+      action: 'Valid Claim Evaluated',
+      details: `Verified Groth16 proof on BN254. Disbursed $2,400 USDC for Brain MRI.`,
+      badge: 'success',
+      txHash: newClaim.txHash
+    };
+    setAuditLogs(prev => [audit, ...prev]);
+    addToast('success', 'Valid Claim Verified', 'Brain MRI ($2,400) settled via Groth16 ZKP without leaking diagnosis.');
+
     addLog(`[SUCCESS] Proof verified on-chain! Nullifier marked as SPENT. Payout of $2,400 USDC settled!`);
     setIsProcessing(false);
   };
@@ -298,6 +357,19 @@ export function App() {
         privateInputsSummary: targetClaim.privateInputsSummary
       };
       setClaims(prev => [replayedClaim, ...prev]);
+
+      const audit: AuditEvent = {
+        id: `aud-${Date.now()}`,
+        timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+        actorRole: 'emergency',
+        actorAddress: '0xAttacker_Malicious_Proxy',
+        action: 'Replay Attack Blocked',
+        details: `Smart contract reverted with ClaimAlreadyNullified. Duplicate nullifier rejected.`,
+        badge: 'danger'
+      };
+      setAuditLogs(prev => [audit, ...prev]);
+      addToast('error', 'Replay Attack Blocked', 'Contract reverted with ClaimAlreadyNullified. Double-spend rejected.');
+
       setIsProcessing(false);
     }, 600);
   };
@@ -330,6 +402,19 @@ export function App() {
         privateInputsSummary: targetClaim.privateInputsSummary
       };
       setClaims(prev => [rejectedClaim, ...prev]);
+
+      const audit: AuditEvent = {
+        id: `aud-${Date.now()}`,
+        timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+        actorRole: 'emergency',
+        actorAddress: '0xAttacker_Forged_Proof',
+        action: 'Tampered Proof Rejected',
+        details: `BN254 pairing check failed: InvalidProof(). Forged curve points rejected.`,
+        badge: 'danger'
+      };
+      setAuditLogs(prev => [audit, ...prev]);
+      addToast('error', 'Tampered Proof Rejected', 'Groth16 pairing check failed on-chain: InvalidProof(). Zero funds released.');
+
       setIsProcessing(false);
     }, 600);
   };
@@ -343,6 +428,19 @@ export function App() {
     setTimeout(() => {
       addLog(`[CIRCUIT FAILED] R1CS constraint violation: Hospital license leaf does not belong to accredited Merkle tree.`);
       addLog(`[PRIVACY PRESERVED] Circuit halted. Unlicensed provider cannot generate a valid proof.`);
+
+      const audit: AuditEvent = {
+        id: `aud-${Date.now()}`,
+        timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+        actorRole: 'hospital',
+        actorAddress: '0xRogue_Unlicensed_Clinic',
+        action: 'Unlicensed Hospital Rejected',
+        details: `Circom Merkle membership check failed against approvedHospitalRoot.`,
+        badge: 'danger'
+      };
+      setAuditLogs(prev => [audit, ...prev]);
+      addToast('warning', 'Unlicensed Hospital Blocked', 'Merkle root mismatch. Unaccredited clinic cannot generate valid proof.');
+
       setIsProcessing(false);
     }, 500);
   };
@@ -355,6 +453,19 @@ export function App() {
     setTimeout(() => {
       addLog(`[CIRCUIT FAILED] R1CS constraint violation: claimTimestamp <= policyExpiryTimestamp evaluated false.`);
       addLog(`[PRIVACY PRESERVED] Circuit refused to output a valid Groth16 proof. Diagnosis was NOT leaked.`);
+
+      const audit: AuditEvent = {
+        id: `aud-${Date.now()}`,
+        timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+        actorRole: 'hospital',
+        actorAddress: ACCREDITED_HOSPITALS[0].walletAddress,
+        action: 'Expired Policy Rejected',
+        details: `Circuit constraint claimTimestamp <= policyExpiryTimestamp violated.`,
+        badge: 'warning'
+      };
+      setAuditLogs(prev => [audit, ...prev]);
+      addToast('warning', 'Expired Policy Blocked', 'Circuit constraint violated: claim date is past policy expiry.');
+
       setIsProcessing(false);
     }, 500);
   };
@@ -367,6 +478,19 @@ export function App() {
     setTimeout(() => {
       addLog(`[CIRCUIT FAILED] R1CS constraint violation: claimAmount ($75,000) > policyMaxCoverage ($50,000).`);
       addLog(`[PRIVACY PRESERVED] Prover aborted. Invalid claim halted before reaching the blockchain.`);
+
+      const audit: AuditEvent = {
+        id: `aud-${Date.now()}`,
+        timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
+        actorRole: 'hospital',
+        actorAddress: ACCREDITED_HOSPITALS[0].walletAddress,
+        action: 'Coverage Limit Exceeded',
+        details: `Circuit constraint claimAmount <= policyMaxCoverage violated ($75,000 > $50,000).`,
+        badge: 'warning'
+      };
+      setAuditLogs(prev => [audit, ...prev]);
+      addToast('warning', 'Limit Exceeded Blocked', 'Circuit constraint violated: claim amount exceeds remaining coverage.');
+
       setIsProcessing(false);
     }, 500);
   };
@@ -379,11 +503,21 @@ export function App() {
         currentRole={currentRole}
         walletBalance={walletBalance}
         onSelectRole={setCurrentRole}
+        terminologyMode={terminologyMode}
+        onToggleTerminology={() => setTerminologyMode(m => m === 'plain' ? 'technical' : 'plain')}
       />
       <RoleSwitcher
         currentRole={currentRole}
         onSelectRole={setCurrentRole}
         pendingClaimsCount={pendingClaimsCount}
+      />
+      <WorkflowStepper
+        currentRole={currentRole}
+        onSelectRole={setCurrentRole}
+        hasRecord={records.length > 0}
+        hasProofOrClaim={claims.length > 0}
+        hasSettled={claims.some(c => c.status === 'PAYOUT_SETTLED')}
+        terminologyMode={terminologyMode}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -411,6 +545,7 @@ export function App() {
             onSelectRole={setCurrentRole}
             isProcessing={isProcessing}
             demoLogs={demoLogs}
+            terminologyMode={terminologyMode}
           />
         )}
 
@@ -424,6 +559,8 @@ export function App() {
             onAddRecord={handleAddRecord}
             onLogRecordView={handleLogRecordView}
             onBreakGlassAccess={handleBreakGlassAccess}
+            terminologyMode={terminologyMode}
+            onSelectRole={setCurrentRole}
           />
         )}
 
@@ -435,6 +572,8 @@ export function App() {
             onTestUnaccreditedHospital={handleTestUnaccreditedHospital}
             onTestLimitExceeded={handleTestLimitExceeded}
             isProcessing={isProcessing}
+            terminologyMode={terminologyMode}
+            onSelectRole={setCurrentRole}
           />
         )}
 
@@ -445,6 +584,8 @@ export function App() {
             onSettleClaim={handleSettleClaim}
             onTestReplayAttack={handleTestReplayAttack}
             isProcessing={isProcessing}
+            terminologyMode={terminologyMode}
+            onSelectRole={setCurrentRole}
           />
         )}
 
@@ -461,6 +602,8 @@ export function App() {
           Client-side Groth16 Prover & EVM Smart Contracts · Calm Editorial Clinical Theme
         </p>
       </footer>
+
+      <ToastContainer toasts={toasts} onDismiss={removeToast} />
     </div>
   );
 }

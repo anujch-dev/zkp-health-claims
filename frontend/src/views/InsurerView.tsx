@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { ShieldCheck, AlertOctagon, CheckCircle2, DollarSign, Eye, Hash, ShieldAlert, Cpu, Copy, Check, Download, FileCheck, XCircle, ToggleLeft, ToggleRight } from 'lucide-react';
-import { ClaimSubmission, InsurancePolicy, CryptographicReceipt } from '../types';
+import { ShieldCheck, AlertOctagon, CheckCircle2, DollarSign, Eye, Hash, ShieldAlert, Cpu, Copy, Check, Download, FileCheck, XCircle, ToggleLeft, ToggleRight, ArrowRight } from 'lucide-react';
+import { ClaimSubmission, InsurancePolicy, CryptographicReceipt, TerminologyMode, UserRole } from '../types';
 import { ArchitectureCard } from '../components/ArchitectureCard';
 import { CERTIFIED_GROTH16_CIRCUIT } from '../fixtures/groth16Artifacts';
 import { HOSPITAL_MERKLE_ROOT } from '../fixtures/mockData';
@@ -11,6 +11,8 @@ interface InsurerViewProps {
   onSettleClaim: (claimId: string) => void;
   onTestReplayAttack?: () => void;
   isProcessing: boolean;
+  terminologyMode?: TerminologyMode;
+  onSelectRole?: (role: UserRole) => void;
 }
 
 export const InsurerView: React.FC<InsurerViewProps> = ({
@@ -19,6 +21,8 @@ export const InsurerView: React.FC<InsurerViewProps> = ({
   onSettleClaim,
   onTestReplayAttack,
   isProcessing,
+  terminologyMode = 'plain',
+  onSelectRole,
 }) => {
   const [selectedProofClaim, setSelectedProofClaim] = useState<ClaimSubmission | null>(null);
   const [copiedCalldata, setCopiedCalldata] = useState(false);
@@ -45,7 +49,12 @@ export const InsurerView: React.FC<InsurerViewProps> = ({
   const replayedClaimsCount = claims.filter(c => c.status === 'REJECTED_REPLAY').length;
 
   const handleDownloadReceipt = (claim: ClaimSubmission) => {
-    const receipt: CryptographicReceipt = {
+    const receipt: CryptographicReceipt & {
+      publicSignals?: string[];
+      pi_a?: string[];
+      pi_b?: string[][];
+      pi_c?: string[];
+    } = {
       version: "1.0.0",
       project: "ZK-HealthClaims",
       track: "WEB3 · W3-01",
@@ -57,6 +66,11 @@ export const InsurerView: React.FC<InsurerViewProps> = ({
       claimAmount: claim.publicInputs.claimAmount,
       claimTimestamp: claim.publicInputs.claimTimestamp,
       settledAt: claim.createdAt,
+      // Top-level aliases for universal verifier compatibility
+      publicSignals: claim.proof.publicSignals,
+      pi_a: claim.proof.pi_a,
+      pi_b: claim.proof.pi_b,
+      pi_c: claim.proof.pi_c,
       groth16Proof: {
         curve: "BN254 (alt_bn128)",
         protocol: "Groth16",
@@ -96,6 +110,12 @@ export const InsurerView: React.FC<InsurerViewProps> = ({
         pi_b: sample.proof.pi_b,
         pi_c: sample.proof.pi_c,
         publicSignals: sample.proof.publicSignals,
+        groth16Proof: {
+          pi_a: sample.proof.pi_a,
+          pi_b: sample.proof.pi_b,
+          pi_c: sample.proof.pi_c,
+          publicSignals: sample.proof.publicSignals,
+        },
         proofType: sample.proof.proofType
       };
       setVerifierInputJSON(JSON.stringify(receipt, null, 2));
@@ -114,7 +134,10 @@ export const InsurerView: React.FC<InsurerViewProps> = ({
       }
 
       const parsed = JSON.parse(verifierInputJSON);
-      if (!parsed.claimNullifier || !parsed.publicSignals || (!parsed.pi_a && !parsed.groth16Proof?.pi_a)) {
+      const publicSignals = parsed.publicSignals || parsed.groth16Proof?.publicSignals;
+      const pi_a = parsed.pi_a || parsed.groth16Proof?.pi_a;
+
+      if (!parsed.claimNullifier || !publicSignals || !pi_a) {
         setVerificationResult({
           status: 'invalid',
           details: 'Missing Groth16 curve points or public signals in receipt JSON.'
@@ -122,7 +145,7 @@ export const InsurerView: React.FC<InsurerViewProps> = ({
         return;
       }
 
-      const root = parsed.hospitalMerkleRoot || parsed.publicSignals[0];
+      const root = parsed.hospitalMerkleRoot || publicSignals[0];
       const isRootValid = root && (root.toLowerCase() === HOSPITAL_MERKLE_ROOT.toLowerCase() || root.length === 66);
 
       if (!isRootValid) {
@@ -261,7 +284,9 @@ export const InsurerView: React.FC<InsurerViewProps> = ({
                 <th className="py-3 px-3">Claim ID / Time</th>
                 <th className="py-3 px-3">Hospital Provider</th>
                 <th className="py-3 px-3">Claim Amount</th>
-                <th className="py-3 px-3">Claim Nullifier (Replay ID)</th>
+                <th className="py-3 px-3">
+                  {terminologyMode === 'plain' ? 'Single-Use Barcode (Nullifier)' : 'Claim Nullifier'}
+                </th>
                 {isXRayMode && <th className="py-3 px-3 text-sage-800">Diagnosis (X-Ray)</th>}
                 <th className="py-3 px-3">ZK Proof Status</th>
                 <th className="py-3 px-3 text-right">Settlement & Audit</th>
@@ -420,6 +445,34 @@ export const InsurerView: React.FC<InsurerViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Next Step Journey Card */}
+      {onSelectRole && (
+        <div className="bg-sage-50 border border-sage-200 rounded-2xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center space-x-3">
+            <div className="h-10 w-10 rounded-xl bg-sage-200 text-sage-800 flex items-center justify-center shrink-0">
+              <CheckCircle2 className="h-5 w-5" />
+            </div>
+            <div>
+              <h4 className="text-sm font-serif font-bold text-sage-950">
+                {terminologyMode === 'plain' ? 'Instant Settlement & Anti-Fraud Verified' : 'Groth16 Settlement & Nullifier Registry Verified'}
+              </h4>
+              <p className="text-xs text-sage-800">
+                {terminologyMode === 'plain'
+                  ? 'All payouts were released automatically without seeing medical records. Inspect the live tamper-proof audit trail.'
+                  : 'Zero-knowledge proofs verified on BN254. Explore the on-chain audit trail, Merkle trees, and threat defense matrix.'}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => onSelectRole('architecture')}
+            className="w-full sm:w-auto px-4 py-2.5 bg-sage-700 hover:bg-sage-800 text-white text-xs font-semibold rounded-xl flex items-center justify-center space-x-2 transition shadow-sm shrink-0"
+          >
+            <span>Next: Architecture & Audit Trail</span>
+            <ArrowRight className="h-4 w-4" />
+          </button>
+        </div>
+      )}
 
       {/* Embedded Threat Model & Architecture Card */}
       <ArchitectureCard />

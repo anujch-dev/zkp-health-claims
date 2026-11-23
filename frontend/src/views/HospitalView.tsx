@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Building2, ShieldCheck, Cpu, EyeOff, Lock, CheckCircle2, AlertTriangle, FileCheck, RefreshCw, Network, Copy, Check, ChevronDown, ChevronUp, ShieldAlert, RotateCcw, XCircle } from 'lucide-react';
-import { AccreditedHospital, InsurancePolicy, ClaimSubmission, ClaimPrivateInputs } from '../types';
+import { Building2, ShieldCheck, Cpu, EyeOff, Lock, CheckCircle2, AlertTriangle, FileCheck, RefreshCw, Network, Copy, Check, ChevronDown, ChevronUp, ShieldAlert, RotateCcw, XCircle, ArrowRight } from 'lucide-react';
+import { AccreditedHospital, InsurancePolicy, ClaimSubmission, ClaimPrivateInputs, TerminologyMode, UserRole } from '../types';
 import { ACCREDITED_HOSPITALS, HOSPITAL_MERKLE_ROOT } from '../fixtures/mockData';
 import { generateHealthClaimProof, CircuitValidationResult } from '../lib/zkp';
 import { CERTIFIED_GROTH16_CIRCUIT } from '../fixtures/groth16Artifacts';
@@ -12,6 +12,8 @@ interface HospitalViewProps {
   onTestUnaccreditedHospital?: () => void;
   onTestLimitExceeded?: () => void;
   isProcessing: boolean;
+  terminologyMode?: TerminologyMode;
+  onSelectRole?: (role: UserRole) => void;
 }
 
 export const HospitalView: React.FC<HospitalViewProps> = ({
@@ -21,6 +23,8 @@ export const HospitalView: React.FC<HospitalViewProps> = ({
   onTestUnaccreditedHospital,
   onTestLimitExceeded,
   isProcessing,
+  terminologyMode = 'plain',
+  onSelectRole,
 }) => {
   const [selectedHospital, setSelectedHospital] = useState<AccreditedHospital>(ACCREDITED_HOSPITALS[0]);
   const [selectedProcedureCode, setSelectedProcedureCode] = useState<string>(policy.coveredProcedures[0].code);
@@ -35,8 +39,23 @@ export const HospitalView: React.FC<HospitalViewProps> = ({
   const [circuitResult, setCircuitResult] = useState<CircuitValidationResult | null>(null);
   const [showMerkleDetails, setShowMerkleDetails] = useState<boolean>(false);
   const [copiedCalldata, setCopiedCalldata] = useState<boolean>(false);
+  const [lastSubmittedId, setLastSubmittedId] = useState<string | null>(null);
 
   const activeProcedure = policy.coveredProcedures.find(p => p.code === selectedProcedureCode) || policy.coveredProcedures[0];
+
+  const handleProcedureChange = (code: string) => {
+    setSelectedProcedureCode(code);
+    const proc = policy.coveredProcedures.find(p => p.code === code);
+    if (proc) {
+      const defaultAmounts: Record<string, number> = {
+        'CPT-70553': 2400, // Brain MRI with contrast ($3,500 max)
+        'CPT-93000': 350,  // 12-lead ECG ($650 max)
+        'CPT-99214': 220,  // Specialist Consultation ($350 max)
+        'CPT-43239': 1850, // Upper Endoscopy ($2,800 max)
+      };
+      setClaimAmount(defaultAmounts[code] || Math.min(proc.maxCoveredAmount, 1000));
+    }
+  };
 
   // Pre-flight constraint validations
   const claimTimestamp = Math.floor(new Date(claimDate).getTime() / 1000);
@@ -106,6 +125,7 @@ export const HospitalView: React.FC<HospitalViewProps> = ({
     };
 
     onClaimSubmitted(submission);
+    setLastSubmittedId(submission.id);
     setProvingStatus('idle');
     setCircuitResult(null);
     setClaimNonce('0x' + Math.random().toString(16).slice(2, 10));
@@ -207,6 +227,34 @@ export const HospitalView: React.FC<HospitalViewProps> = ({
         )}
       </div>
 
+      {/* Contextual Next Step Banner */}
+      {lastSubmittedId && onSelectRole && (
+        <div className="bg-sage-50 border border-sage-200 rounded-2xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in">
+          <div className="flex items-center space-x-3">
+            <div className="h-10 w-10 rounded-xl bg-sage-200 text-sage-800 flex items-center justify-center shrink-0">
+              <CheckCircle2 className="h-5 w-5" />
+            </div>
+            <div>
+              <h4 className="text-sm font-serif font-bold text-sage-950">
+                Claim #{lastSubmittedId} Broadcast to Smart Contract!
+              </h4>
+              <p className="text-xs text-sage-800">
+                {terminologyMode === 'plain'
+                  ? 'Cryptographic proof generated without revealing medical details. Proceed to Insurer Settlement to verify and release payment.'
+                  : 'Groth16 Zero-Knowledge proof generated. Proceed to Insurer Settlement to verify Groth16 pairings on EVM and settle funds.'}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => onSelectRole('insurer')}
+            className="w-full sm:w-auto px-4 py-2.5 bg-sage-700 hover:bg-sage-800 text-white text-xs font-semibold rounded-xl flex items-center justify-center space-x-2 transition shadow-sm shrink-0"
+          >
+            <span>Next: Insurer Settlement</span>
+            <ArrowRight className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       {/* Main Two-Column Layout: Private Clinical Entry vs ZK Prover */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left Column: Private Clinical Data Entry */}
@@ -292,12 +340,17 @@ export const HospitalView: React.FC<HospitalViewProps> = ({
             {/* Procedure and Amount Selection */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-clinical-text mb-1">
-                  Covered Procedure
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-medium text-clinical-text">
+                    Covered Procedure
+                  </label>
+                  <span className="text-[10px] font-mono text-sage-700 bg-sage-50 px-1.5 py-0.2 rounded border border-sage-200">
+                    PUBLIC CODE
+                  </span>
+                </div>
                 <select
                   value={selectedProcedureCode}
-                  onChange={(e) => setSelectedProcedureCode(e.target.value)}
+                  onChange={(e) => handleProcedureChange(e.target.value)}
                   className="w-full bg-white border border-alabaster-300 rounded-xl px-3 py-2 text-xs text-clinical-text focus:outline-none focus:border-sage-600"
                 >
                   {policy.coveredProcedures.map((p) => (
@@ -309,9 +362,14 @@ export const HospitalView: React.FC<HospitalViewProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-clinical-text mb-1">
-                  Claim Amount ($ USD)
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-medium text-clinical-text">
+                    Claim Amount ($ USD)
+                  </label>
+                  <span className="text-[10px] font-mono text-sage-700 bg-sage-50 px-1.5 py-0.2 rounded border border-sage-200">
+                    PUBLIC INPUT
+                  </span>
+                </div>
                 <input
                   type="number"
                   value={claimAmount}

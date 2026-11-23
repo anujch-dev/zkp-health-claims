@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Shield, Lock, Key, UserPlus, Trash2, CheckCircle2, Calendar, Hash, Plus, Eye, FileText, Sparkles, X, AlertTriangle, QrCode, Download, ShieldAlert, Cpu } from 'lucide-react';
-import { HealthRecord, InsurancePolicy, AuditEvent, GranularRole } from '../types';
+import { Shield, Lock, Key, UserPlus, Trash2, CheckCircle2, Calendar, Hash, Plus, Eye, FileText, Sparkles, X, AlertTriangle, QrCode, Download, ShieldAlert, Cpu, ArrowRight } from 'lucide-react';
+import { HealthRecord, InsurancePolicy, AuditEvent, GranularRole, TerminologyMode, UserRole } from '../types';
 import { encryptRecordWithAES, decryptRecordWithAES } from '../lib/crypto';
 import { generateFHIRBundle, generatePharmacyPass, FHIRBundle, PharmacyQRPass } from '../lib/fhir';
 
@@ -13,6 +13,8 @@ interface PatientViewProps {
   onAddRecord?: (newRecord: HealthRecord) => void;
   onLogRecordView?: (recordId: string, viewer: string) => void;
   onBreakGlassAccess?: (recordId: string, reason: string, responderName: string, responderAddress: string) => void;
+  terminologyMode?: TerminologyMode;
+  onSelectRole?: (role: UserRole) => void;
 }
 
 export const PatientView: React.FC<PatientViewProps> = ({
@@ -24,6 +26,8 @@ export const PatientView: React.FC<PatientViewProps> = ({
   onAddRecord,
   onLogRecordView,
   onBreakGlassAccess,
+  terminologyMode = 'plain',
+  onSelectRole,
 }) => {
   const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
   const [newDoctorAddress, setNewDoctorAddress] = useState('');
@@ -299,6 +303,34 @@ CLINICAL NOTES: ${clinicalNotes}`;
           </div>
         </div>
       </div>
+
+      {/* Next Step Journey Prompt */}
+      {onSelectRole && (
+        <div className="bg-sage-50 border border-sage-200 rounded-2xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center space-x-3">
+            <div className="h-10 w-10 rounded-xl bg-sage-200 text-sage-800 flex items-center justify-center shrink-0">
+              <CheckCircle2 className="h-5 w-5" />
+            </div>
+            <div>
+              <h4 className="text-sm font-serif font-bold text-sage-950">
+                {terminologyMode === 'plain' ? 'Step 1 Complete: Health Records Encrypted' : 'Step 1 Complete: AES-256-GCM Records & Commitments Anchored'}
+              </h4>
+              <p className="text-xs text-sage-800">
+                {terminologyMode === 'plain'
+                  ? 'Your medical files are protected with bank-grade encryption off-chain. Ready to generate an insurance claim? Go to Hospital Prover.'
+                  : 'SHA-256 commitments anchored on HealthAccessRegistry.sol. Ready to generate a Circom Groth16 claim proof at Hospital Prover.'}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => onSelectRole('hospital')}
+            className="w-full sm:w-auto px-4 py-2.5 bg-sage-700 hover:bg-sage-800 text-white text-xs font-semibold rounded-xl flex items-center justify-center space-x-2 transition shadow-sm shrink-0"
+          >
+            <span>Next: Hospital Prover</span>
+            <ArrowRight className="h-4 w-4" />
+          </button>
+        </div>
+      )}
 
       {/* Encrypted Health Records List */}
       <div className="space-y-4">
