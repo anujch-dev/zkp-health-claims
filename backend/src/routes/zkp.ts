@@ -1,1 +1,134 @@
-import { Router, Request, Response } from 'express';\nimport { zkpService } from '../services/zkpService.js';\nimport { ZKClaimPrivateInputs } from '../types/index.js';\n\nconst router = Router();\n\n/**\n * GET /api/zkp/merkle-tree\n * Returns the approved hospital Merkle tree root and accredited provider list\n */\nrouter.get('/merkle-tree', async (_req: Request, res: Response): Promise<void> => {\n  try {\n    await zkpService.init();\n    res.json({\n      success: true,\n      merkleRootDecimal: zkpService.hospitalRoot,\n      merkleRootHex: '0x' + BigInt(zkpService.hospitalRoot).toString(16).padStart(64, '0'),\n      treeDepth: 4,\n      totalLeaves: zkpService.hospitalLeaves.length,\n      accreditedHospitals: [\n        { id: '1001', name: 'Mayo Clinic Healthcare System', leafIndex: 0, accredited: true },\n        { id: '1002', name: 'Johns Hopkins Medicine', leafIndex: 1, accredited: true },\n        { id: '1003', name: 'Massachusetts General Hospital', leafIndex: 2, accredited: true },\n        { id: '1004', name: 'Cleveland Clinic Foundation', leafIndex: 3, accredited: true }\n      ]\n    });\n  } catch (err: any) {\n    res.status(500).json({ error: 'Failed to retrieve Merkle tree', details: err.message });\n  }\n});\n\n/**\n * GET /api/zkp/merkle-proof/:hospitalId\n * Generates Poseidon Merkle inclusion proof for accredited hospital\n */\nrouter.get('/merkle-proof/:hospitalId', async (req: Request, res: Response): Promise<void> => {\n  try {\n    const hospitalId = String(req.params.hospitalId);\n    const proof = await zkpService.getHospitalMerkleProof(hospitalId);\n    res.json({\n      success: true,\n      hospitalId,\n      proof\n    });\n  } catch (err: any) {\n    res.status(500).json({ error: 'Failed to generate hospital Merkle proof', details: err.message });\n  }\n});\n\n/**\n * POST /api/zkp/compute-commitments\n * Calculates policy commitment and claim nullifier via Poseidon\n */\nrouter.post('/compute-commitments', async (req: Request, res: Response): Promise<void> => {\n  try {\n    const { policyId, patientSecret, policyExpiry, maxCoverageLimit, claimId } = req.body;\n\n    const policyCommitment = await zkpService.computePolicyCommitment(\n      policyId || '8801',\n      patientSecret || '987654321',\n      policyExpiry || '1893456000',\n      maxCoverageLimit || '15000'\n    );\n\n    const claimNullifier = await zkpService.computeClaimNullifier(\n      patientSecret || '987654321',\n      policyId || '8801',\n      claimId || '5501'\n    );\n\n    res.json({\n      success: true,\n      policyCommitmentDecimal: policyCommitment,\n      policyCommitmentHex: '0x' + BigInt(policyCommitment).toString(16).padStart(64, '0'),\n      claimNullifierDecimal: claimNullifier,\n      claimNullifierHex: '0x' + BigInt(claimNullifier).toString(16).padStart(64, '0')\n    });\n  } catch (err: any) {\n    res.status(500).json({ error: 'Failed to compute commitments', details: err.message });\n  }\n});\n\n/**\n * POST /api/zkp/prove\n * Full server-side SnarkJS Groth16 proof generation\n */\nrouter.post('/prove', async (req: Request, res: Response): Promise<void> => {\n  try {\n    const privateInputs = req.body.privateInputs as ZKClaimPrivateInputs;\n    const customMerkleRoot = req.body.merkleRoot;\n\n    if (!privateInputs) {\n      res.status(400).json({ error: 'privateInputs is required' });\n      return;\n    }\n\n    // Default missing Merkle path if hospitalId provided\n    if (!privateInputs.hospitalMerkleProofPath || privateInputs.hospitalMerkleProofPath.length === 0) {\n      const merkleProof = await zkpService.getHospitalMerkleProof(privateInputs.hospitalId || '1001');\n      privateInputs.hospitalMerkleProofPath = merkleProof.pathElements;\n      privateInputs.hospitalMerkleProofIndices = merkleProof.pathIndices;\n    }\n\n    const proofResult = await zkpService.generateProof(privateInputs, customMerkleRoot);\n\n    res.json({\n      success: true,\n      ...proofResult\n    });\n  } catch (err: any) {\n    res.status(500).json({ error: 'Failed to generate Groth16 proof', details: err.message });\n  }\n});\n\n/**\n * POST /api/zkp/verify\n * Verifies a Groth16 proof against circuits/build/verification_key.json\n */\nrouter.post('/verify', async (req: Request, res: Response): Promise<void> => {\n  try {\n    const { proof, publicSignals } = req.body;\n\n    if (!proof || !publicSignals) {\n      res.status(400).json({ error: 'proof and publicSignals are required' });\n      return;\n    }\n\n    const verificationResult = await zkpService.verifyProof(proof, publicSignals);\n\n    res.json({\n      success: true,\n      isValid: verificationResult.isValid\n    });\n  } catch (err: any) {\n    res.status(500).json({ error: 'Failed to verify Groth16 proof', details: err.message });\n  }\n});\n\nexport default router;\n
+import { Router, Request, Response } from 'express';
+import { zkpService } from '../services/zkpService.js';
+import { ZKClaimPrivateInputs } from '../types/index.js';
+
+const router = Router();
+
+/**
+ * GET /api/zkp/merkle-tree
+ * Returns the approved hospital Merkle tree root and accredited provider list
+ */
+router.get('/merkle-tree', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    await zkpService.init();
+    res.json({
+      success: true,
+      merkleRootDecimal: zkpService.hospitalRoot,
+      merkleRootHex: '0x' + BigInt(zkpService.hospitalRoot).toString(16).padStart(64, '0'),
+      treeDepth: 4,
+      totalLeaves: zkpService.hospitalLeaves.length,
+      accreditedHospitals: [\n        { id: '1001', name: 'Mayo Clinic Healthcare System', leafIndex: 0, accredited: true },\n        { id: '1002', name: 'Johns Hopkins Medicine', leafIndex: 1, accredited: true },\n        { id: '1003', name: 'Massachusetts General Hospital', leafIndex: 2, accredited: true },\n        { id: '1004', name: 'Cleveland Clinic Foundation', leafIndex: 3, accredited: true }\n      ]
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to retrieve Merkle tree', details: err.message });
+  }
+});
+
+/**
+ * GET /api/zkp/merkle-proof/:hospitalId
+ * Generates Poseidon Merkle inclusion proof for accredited hospital
+ */
+router.get('/merkle-proof/:hospitalId', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const hospitalId = String(req.params.hospitalId);
+    const proof = await zkpService.getHospitalMerkleProof(hospitalId);
+    res.json({
+      success: true,
+      hospitalId,
+      proof
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to generate hospital Merkle proof', details: err.message });
+  }
+});
+
+/**
+ * POST /api/zkp/compute-commitments
+ * Calculates policy commitment and claim nullifier via Poseidon
+ */
+router.post('/compute-commitments', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { policyId, patientSecret, policyExpiry, maxCoverageLimit, claimId } = req.body;
+
+    const policyCommitment = await zkpService.computePolicyCommitment(
+      policyId || '8801',
+      patientSecret || '987654321',
+      policyExpiry || '1893456000',
+      maxCoverageLimit || '15000'
+    );
+
+    const claimNullifier = await zkpService.computeClaimNullifier(
+      patientSecret || '987654321',
+      policyId || '8801',
+      claimId || '5501'
+    );
+
+    res.json({
+      success: true,
+      policyCommitmentDecimal: policyCommitment,
+      policyCommitmentHex: '0x' + BigInt(policyCommitment).toString(16).padStart(64, '0'),
+      claimNullifierDecimal: claimNullifier,
+      claimNullifierHex: '0x' + BigInt(claimNullifier).toString(16).padStart(64, '0')
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to compute commitments', details: err.message });
+  }
+});
+
+/**
+ * POST /api/zkp/prove
+ * Full server-side SnarkJS Groth16 proof generation
+ */
+router.post('/prove', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const privateInputs = req.body.privateInputs as ZKClaimPrivateInputs;
+    const customMerkleRoot = req.body.merkleRoot;
+
+    if (!privateInputs) {
+      res.status(400).json({ error: 'privateInputs is required' });
+      return;
+    }
+
+    // Default missing Merkle path if hospitalId provided
+    if (!privateInputs.hospitalMerkleProofPath || privateInputs.hospitalMerkleProofPath.length === 0) {
+      const merkleProof = await zkpService.getHospitalMerkleProof(privateInputs.hospitalId || '1001');
+      privateInputs.hospitalMerkleProofPath = merkleProof.pathElements;
+      privateInputs.hospitalMerkleProofIndices = merkleProof.pathIndices;
+    }
+
+    const proofResult = await zkpService.generateProof(privateInputs, customMerkleRoot);
+
+    res.json({
+      success: true,
+      ...proofResult
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to generate Groth16 proof', details: err.message });
+  }
+});
+
+/**
+ * POST /api/zkp/verify
+ * Verifies a Groth16 proof against circuits/build/verification_key.json
+ */
+router.post('/verify', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { proof, publicSignals } = req.body;
+
+    if (!proof || !publicSignals) {
+      res.status(400).json({ error: 'proof and publicSignals are required' });
+      return;
+    }
+
+    const verificationResult = await zkpService.verifyProof(proof, publicSignals);
+
+    res.json({
+      success: true,
+      isValid: verificationResult.isValid
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to verify Groth16 proof', details: err.message });
+  }
+});
+
+export default router;
