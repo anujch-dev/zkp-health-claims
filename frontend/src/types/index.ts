@@ -1,4 +1,4 @@
-export type UserRole = 'patient' | 'hospital' | 'insurer' | 'demo' | 'architecture';
+export type UserRole = 'landing' | 'patient' | 'hospital' | 'insurer' | 'demo' | 'architecture';
 
 export type GranularRole = 'Doctor' | 'Specialist' | 'EmergencyResponder' | 'Auditor';
 
