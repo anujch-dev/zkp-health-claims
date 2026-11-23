@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Building2, ShieldCheck, Cpu, EyeOff, Lock, CheckCircle2, AlertTriangle, FileCheck, RefreshCw, Network, Copy, Check, ChevronDown, ChevronUp, ShieldAlert, RotateCcw, XCircle, ArrowRight } from 'lucide-react';
+import { Building2, ShieldCheck, Cpu, EyeOff, Lock, CheckCircle2, AlertTriangle, FileCheck, RefreshCw, Copy, Check, ArrowRight } from 'lucide-react';
 import { AccreditedHospital, InsurancePolicy, ClaimSubmission, ClaimPrivateInputs, TerminologyMode, UserRole } from '../types';
 import { ACCREDITED_HOSPITALS, HOSPITAL_MERKLE_ROOT } from '../fixtures/mockData';
 import { generateHealthClaimProof, CircuitValidationResult } from '../lib/zkp';
@@ -20,9 +20,6 @@ interface HospitalViewProps {
 export const HospitalView: React.FC<HospitalViewProps> = ({
   policy,
   onClaimSubmitted,
-  onTestReplayAttack,
-  onTestUnaccreditedHospital,
-  onTestLimitExceeded,
   isProcessing,
   terminologyMode = 'plain',
   onSelectRole,
@@ -38,7 +35,6 @@ export const HospitalView: React.FC<HospitalViewProps> = ({
 
   const [provingStatus, setProvingStatus] = useState<'idle' | 'proving' | 'success' | 'failed'>('idle');
   const [circuitResult, setCircuitResult] = useState<CircuitValidationResult | null>(null);
-  const [showMerkleDetails, setShowMerkleDetails] = useState<boolean>(false);
   const [copiedCalldata, setCopiedCalldata] = useState<boolean>(false);
   const [lastSubmittedId, setLastSubmittedId] = useState<string | null>(null);
 
@@ -218,63 +214,19 @@ export const HospitalView: React.FC<HospitalViewProps> = ({
           </div>
         </div>
 
-        {/* Merkle Proof Details Bar */}
-        <div className="mt-4 pt-4 border-t border-alabaster-200 flex flex-wrap items-center justify-between gap-2 text-xs font-mono text-clinical-muted">
+        {/* Accreditation Status Bar */}
+        <div className="mt-4 pt-4 border-t border-alabaster-200 flex flex-wrap items-center justify-between gap-2 text-xs text-clinical-muted">
           <div className="flex items-center space-x-2">
-            <span className="font-sans">Hospital Wallet:</span>
-            <span className="text-clinical-text">{selectedHospital.walletAddress}</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <span className="font-sans">Merkle Leaf Index:</span>
-            <span className="text-sage-700 font-bold">#{selectedHospital.leafIndex}</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <span className="font-sans">Approved Root:</span>
-            <span className="text-sage-800 font-bold truncate max-w-[120px]" title={HOSPITAL_MERKLE_ROOT}>
-              {HOSPITAL_MERKLE_ROOT.slice(0, 10)}...
+            <span className="font-sans font-medium">Provider Network Status:</span>
+            <span className="text-sage-800 font-semibold flex items-center gap-1">
+              <CheckCircle2 className="h-3.5 w-3.5 text-sage-700" />
+              Verified In-Network Accredited Hospital
             </span>
           </div>
-          <button
-            onClick={() => setShowMerkleDetails(!showMerkleDetails)}
-            className="flex items-center gap-1 text-[11px] text-sage-700 hover:text-sage-800 font-sans font-semibold"
-          >
-            <Network className="h-3.5 w-3.5" />
-            <span>{showMerkleDetails ? 'Hide Merkle Tree Path' : 'Inspect Merkle Tree Path (Depth 4)'}</span>
-            {showMerkleDetails ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-          </button>
-        </div>
-
-        {/* Expandable 4-Level Merkle Tree Path Visualizer */}
-        {showMerkleDetails && (
-          <div className="mt-4 p-4 rounded-xl bg-alabaster-50 border border-alabaster-200 text-xs font-mono space-y-3">
-            <div className="flex items-center justify-between text-clinical-text font-sans font-semibold border-b border-alabaster-200 pb-2">
-              <span className="flex items-center gap-1.5 text-sage-800">
-                <Network className="h-4 w-4" />
-                Poseidon Merkle Tree Path Proof (Depth = {CERTIFIED_GROTH16_CIRCUIT.merkleTreeDepth})
-              </span>
-              <span className="text-[10px] text-sage-800 bg-sage-100 px-2 py-0.5 rounded border border-sage-200 font-mono font-bold">
-                Cryptographically Accredited
-              </span>
-            </div>
-
-            <div className="space-y-1.5 text-[11px]">
-              <div className="flex items-center justify-between bg-white p-2 rounded-lg border border-alabaster-200">
-                <span className="text-clinical-muted">[Leaf #{selectedHospital.leafIndex}] Hash(Wallet, License):</span>
-                <span className="text-clinical-text truncate max-w-[280px]">{selectedHospital.leafHash}</span>
-              </div>
-              {selectedHospital.merkleProof.map((proofHash, idx) => (
-                <div key={idx} className="flex items-center justify-between bg-white p-2 rounded-lg border border-alabaster-200">
-                  <span className="text-clinical-muted">[Level {idx + 1} Sibling Node]:</span>
-                  <span className="text-clinical-text truncate max-w-[280px]">{proofHash}</span>
-                </div>
-              ))}
-              <div className="flex items-center justify-between bg-sage-50 border border-sage-300 p-2 rounded-lg font-bold">
-                <span className="text-sage-800">[Merkle Root] Verified by Smart Contract:</span>
-                <span className="text-sage-900 truncate max-w-[280px]">{HOSPITAL_MERKLE_ROOT}</span>
-              </div>
-            </div>
+          <div className="text-[11px] font-mono text-clinical-muted">
+            Wallet: {selectedHospital.walletAddress.slice(0, 10)}...{selectedHospital.walletAddress.slice(-6)}
           </div>
-        )}
+        </div>
       </div>
 
       {/* Contextual Next Step Banner */}
@@ -630,101 +582,15 @@ export const HospitalView: React.FC<HospitalViewProps> = ({
             <button
               onClick={handleSubmitClaim}
               disabled={isProcessing}
-              className="w-full py-3 px-4 rounded-xl bg-sage-700 hover:bg-sage-600 text-white font-semibold text-xs shadow-sm transition flex items-center justify-center space-x-2"
+              className="w-full py-3 px-4 rounded-xl bg-sage-700 hover:bg-sage-600 text-white font-semibold text-xs shadow-sm transition flex items-center justify-center space-x-2 cursor-pointer"
             >
               <FileCheck className="h-4 w-4" />
-              <span>Submit Proof to ZKPInsuranceSettlement.sol</span>
+              <span>Submit Claim for Settlement</span>
             </button>
           )}
-        </div>
-      </div>
-
-      {/* "Try to Hack Me" Zero-Knowledge Attack Simulator */}
-      <div className="bg-white border border-alabaster-300 rounded-2xl p-6 space-y-4 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-alabaster-200 pb-3">
-          <div className="flex items-center space-x-2">
-            <ShieldAlert className="h-5 w-5 text-amber-600" />
-            <h3 className="text-base font-serif font-bold text-clinical-text">
-              "Try to Hack Me" Attack Simulator
-            </h3>
-          </div>
-          <span className="text-[11px] font-mono px-2.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 font-bold">
-            TEST LIVE CRYPTOGRAPHIC GUARDS
-          </span>
-        </div>
-
-        <p className="text-xs text-clinical-muted leading-relaxed">
-          Simulate real cryptographic and smart contract exploit attempts to verify that the Zero-Knowledge system prevents double-spending, unaccredited providers, and policy limit fraud:
-        </p>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="p-4 rounded-xl bg-alabaster-50 border border-alabaster-200 space-y-3 flex flex-col justify-between">
-            <div className="space-y-1.5">
-              <div className="flex items-center space-x-2 text-amber-800 font-bold text-xs">
-                <RotateCcw className="h-4 w-4 text-amber-600" />
-                <span>1. Replay Attack</span>
-              </div>
-              <p className="text-[11px] text-clinical-muted">
-                Attempt to re-submit an already settled claim nullifier to collect a duplicate reimbursement payout.
-              </p>
-              <div className="text-[10px] font-mono text-clinical-muted bg-white p-2 rounded border border-alabaster-200">
-                Expected: Revert with ClaimAlreadyNullified()
-              </div>
-            </div>
-            <button
-              onClick={onTestReplayAttack}
-              disabled={isProcessing}
-              className="w-full py-2 px-3 rounded-lg bg-amber-100/70 hover:bg-amber-100 text-amber-800 border border-amber-300 text-xs font-semibold transition"
-            >
-              Simulate Replay Attack
-            </button>
-          </div>
-
-          <div className="p-4 rounded-xl bg-alabaster-50 border border-alabaster-200 space-y-3 flex flex-col justify-between">
-            <div className="space-y-1.5">
-              <div className="flex items-center space-x-2 text-slate-800 font-bold text-xs">
-                <Lock className="h-4 w-4 text-slate-600" />
-                <span>2. Rogue Hospital Attack</span>
-              </div>
-              <p className="text-[11px] text-clinical-muted">
-                Attempt to submit a claim from an unaccredited clinic whose leaf is not in the approved Merkle tree.
-              </p>
-              <div className="text-[10px] font-mono text-clinical-muted bg-white p-2 rounded border border-alabaster-200">
-                Expected: Circom MerkleTreeInclusion fails
-              </div>
-            </div>
-            <button
-              onClick={onTestUnaccreditedHospital}
-              disabled={isProcessing}
-              className="w-full py-2 px-3 rounded-lg bg-slate-200/70 hover:bg-slate-200 text-slate-800 border border-slate-300 text-xs font-semibold transition"
-            >
-              Simulate Rogue Provider
-            </button>
-          </div>
-
-          <div className="p-4 rounded-xl bg-alabaster-50 border border-alabaster-200 space-y-3 flex flex-col justify-between">
-            <div className="space-y-1.5">
-              <div className="flex items-center space-x-2 text-rose-800 font-bold text-xs">
-                <XCircle className="h-4 w-4 text-rose-600" />
-                <span>3. Over-Limit Fraud ($75k)</span>
-              </div>
-              <p className="text-[11px] text-clinical-muted">
-                Attempt to bill $75,000 for an experimental treatment against a remaining policy coverage of $50,000.
-              </p>
-              <div className="text-[10px] font-mono text-clinical-muted bg-white p-2 rounded border border-alabaster-200">
-                Expected: LessEqThan constraint halts prover
-              </div>
-            </div>
-            <button
-              onClick={onTestLimitExceeded}
-              disabled={isProcessing}
-              className="w-full py-2 px-3 rounded-lg bg-rose-100/70 hover:bg-rose-100 text-rose-800 border border-rose-300 text-xs font-semibold transition"
-            >
-              Simulate Over-Limit Claim
-            </button>
-          </div>
         </div>
       </div>
     </div>
   );
 };
+export default HospitalView;
