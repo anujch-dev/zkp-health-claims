@@ -3,7 +3,6 @@ import { Navbar } from './components/Navbar';
 import { RoleSwitcher } from './components/RoleSwitcher';
 import { WorkflowStepper } from './components/WorkflowStepper';
 import { ToastContainer } from './components/ToastContainer';
-import { GuidedDemoBanner } from './components/GuidedDemoBanner';
 import { PatientView } from './views/PatientView';
 import { HospitalView } from './views/HospitalView';
 import { InsurerView } from './views/InsurerView';
@@ -189,7 +188,7 @@ export function App() {
       actorRole: 'hospital',
       actorAddress: viewerAddress,
       action: 'RecordViewed Logged',
-      details: `Viewer ${viewerAddress.slice(0, 8)}... accessed Record #${recordId} (emitted RecordViewed on-chain)` ,
+      details: `Viewer ${viewerAddress.slice(0, 8)}... accessed Record #${recordId} (emitted RecordViewed on-chain)`,
       badge: 'info'
     };
     setAuditLogs(prev => [audit, ...prev]);
@@ -596,18 +595,6 @@ export function App() {
       )}
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        {currentRole !== 'demo' && (
-          <GuidedDemoBanner
-            onRunValidClaim={handleRunValidClaim}
-            onTestReplayAttack={handleTestReplayAttack}
-            onTestExpiredPolicy={handleTestExpiredPolicy}
-            onTestLimitExceeded={handleTestLimitExceeded}
-            onTestTamperedProof={handleTestTamperedProof}
-            onTestUnaccreditedHospital={handleTestUnaccreditedHospital}
-            isProcessing={isProcessing}
-          />
-        )}
-
         {currentRole === 'demo' && (
           <GuidedDemoView
             onRunValidClaim={handleRunValidClaim}
@@ -673,23 +660,16 @@ export function App() {
         <div className="max-w-7xl mx-auto px-4 space-y-3">
           <div className="flex items-center justify-center space-x-2">
             <span className="font-serif font-bold text-xl text-[#294638]">ZK-HealthClaims</span>
-            <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-sm bg-[#E7E1D7] text-[#294638] font-semibold">
-              Track 4 · W3-01
-            </span>
           </div>
           <p className="font-normal text-xs text-[#5F685F] max-w-lg mx-auto leading-relaxed">
-            Privacy-Preserving Health Records & Zero-Knowledge Insurance Claims. Powered by Groth16 zk-SNARKs and EVM Pairing Precompiles on Ethereum.
+            Privacy-Preserving Healthcare Claims & Instant Settlement Powered by Zero-Knowledge Proofs.
           </p>
           <div className="flex flex-wrap justify-center gap-6 text-[11px] uppercase tracking-wider text-[#292D29] pt-2">
-            <button onClick={() => setCurrentRole('demo')} className="hover:text-[#294638] transition">Home</button>
-            <button onClick={() => setCurrentRole('patient')} className="hover:text-[#294638] transition">Patient Vault</button>
-            <button onClick={() => setCurrentRole('hospital')} className="hover:text-[#294638] transition">Hospital Prover</button>
-            <button onClick={() => setCurrentRole('insurer')} className="hover:text-[#294638] transition">Insurer Settlement</button>
-            <button onClick={() => setCurrentRole('architecture')} className="hover:text-[#294638] transition">Threat Model & Audit</button>
+            <button onClick={() => setCurrentRole('demo')} className="hover:text-[#294638] transition cursor-pointer">Home</button>
+            <button onClick={() => setCurrentRole('patient')} className="hover:text-[#294638] transition cursor-pointer">Patient Records</button>
+            <button onClick={() => setCurrentRole('hospital')} className="hover:text-[#294638] transition cursor-pointer">Hospital Claims</button>
+            <button onClick={() => setCurrentRole('insurer')} className="hover:text-[#294638] transition cursor-pointer">Insurance Settlement</button>
           </div>
-          <p className="text-[11px] font-mono text-[#7B847B] pt-2">
-            Contracts: Registry ({REGISTRY_CONTRACT_ADDRESS.slice(0, 10)}...) · Verifier ({VERIFIER_CONTRACT_ADDRESS.slice(0, 10)}...) · Settlement ({SETTLEMENT_CONTRACT_ADDRESS.slice(0, 10)}...)
-          </p>
         </div>
       </footer>
 
