@@ -61,18 +61,37 @@ export function App() {
     setDemoLogs(prev => [`[${new Date().toLocaleTimeString()}] ${message}`, ...prev]);
   };
 
-  // Monitor backend service connectivity on mount
+  // Monitor backend service connectivity on mount with auto-retry
   useEffect(() => {
-    api.getHealth().then(health => {
-      if (health?.status === 'healthy') {
-        setIsBackendOnline(true);
-        addLog(`[Backend Service] Connected to live Express backend on port ${health.port} (All 5 modules ONLINE)`);
-      } else {
-        setIsBackendOnline(false);
+    let isMounted = true;
+    let retryTimer: any = null;
+
+    const checkHealth = async () => {
+      try {
+        const health = await api.getHealth();
+        if (!isMounted) return;
+        if (health?.status === 'healthy') {
+          setIsBackendOnline(true);
+          addLog(`[Backend Service] Connected to live Express backend on port ${health.port || 5001} (All 5 modules ONLINE)`);
+          return;
+        }
+      } catch {
+        // Will retry below
       }
-    }).catch(() => {
-      setIsBackendOnline(false);
-    });
+
+      if (isMounted) {
+        setIsBackendOnline(false);
+        // Retry every 4 seconds until connected
+        retryTimer = setTimeout(checkHealth, 4000);
+      }
+    };
+
+    checkHealth();
+
+    return () => {
+      isMounted = false;
+      if (retryTimer) clearTimeout(retryTimer);
+    };
   }, []);
 
   // Patient Actions

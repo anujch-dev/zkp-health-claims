@@ -61,14 +61,13 @@ export const GuidedDemoView: React.FC<GuidedDemoViewProps> = ({
             </p>
 
             <div className="flex flex-wrap items-center gap-4 pt-2">
-              {/* Primary Dark-Green CTA */}
+              {/* Primary Dark-Green CTA: Open Interactive Hospital Claim Portal */}
               <button
-                onClick={onRunValidClaim}
-                disabled={isProcessing}
-                className="px-7 py-3.5 rounded-sm bg-[#294638] hover:bg-[#1E342A] text-[#FAF9F6] text-xs uppercase tracking-widest font-semibold transition-all duration-150 disabled:opacity-50 flex items-center space-x-2.5 shadow-none cursor-pointer"
+                onClick={() => onSelectRole?.('hospital')}
+                className="px-7 py-3.5 rounded-sm bg-[#294638] hover:bg-[#1E342A] text-[#FAF9F6] text-xs uppercase tracking-widest font-semibold transition-all duration-150 flex items-center space-x-2.5 shadow-none cursor-pointer"
               >
-                <Play className="h-3.5 w-3.5 fill-current" />
-                <span>{isProcessing ? 'Verifying with Hospital...' : 'Verify & Settle Claim'}</span>
+                <span>Verify & Settle Claim</span>
+                <ArrowRight className="h-3.5 w-3.5" />
               </button>
 
               {/* Secondary Text-Based CTA */}
