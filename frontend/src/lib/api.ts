@@ -4,7 +4,13 @@
  * with automatic fallback to client-side cryptographic proving.
  */
 
-const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5001/api';
+const RAW_URL: string = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5001/api';
+let CLEAN_URL = RAW_URL.trim().replace(/\/+$/, '');
+// Upgrade non-localhost http to https to prevent mixed content and 308 redirects on Vercel/Render
+if (CLEAN_URL.startsWith('http://') && !CLEAN_URL.includes('localhost') && !CLEAN_URL.includes('127.0.0.1')) {
+  CLEAN_URL = CLEAN_URL.replace('http://', 'https://');
+}
+const API_BASE = CLEAN_URL.endsWith('/api') ? CLEAN_URL : `${CLEAN_URL}/api`;
 
 export interface BackendHealth {
   status: string;
@@ -15,7 +21,8 @@ export interface BackendHealth {
 }
 
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const url = `${API_BASE}${endpoint}`;
+  const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const url = `${API_BASE}${normalizedEndpoint}`;
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string> || {})

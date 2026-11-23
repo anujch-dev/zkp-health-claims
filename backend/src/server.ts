@@ -27,8 +27,8 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
   next();
 });
 
-// Health check endpoint
-app.get('/api/health', (_req: Request, res: Response) => {
+// Health check endpoint (serves both /health and /api/health)
+const handleHealthCheck = (_req: Request, res: Response) => {
   res.json({
     status: 'healthy',
     version: '1.0.0',
@@ -44,7 +44,11 @@ app.get('/api/health', (_req: Request, res: Response) => {
       audit: 'ONLINE'
     }
   });
-});
+};
+
+app.get('/', handleHealthCheck);
+app.get('/health', handleHealthCheck);
+app.get('/api/health', handleHealthCheck);
 
 // Mount Routes
 app.use('/api/auth', authRouter);
