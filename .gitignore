@@ -22,6 +22,7 @@ dist/
 out/
 artifacts/
 cache/
+backend/storage/ipfs/*.enc
 
 # ZKP build files & keys (large/sensitive proving keys if generated)
 *.zkey
