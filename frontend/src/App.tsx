@@ -8,7 +8,7 @@ import { HospitalView } from './views/HospitalView';
 import { InsurerView } from './views/InsurerView';
 import { GuidedDemoView } from './views/GuidedDemoView';
 import { ArchitectureView } from './views/ArchitectureView';
-import { UserRole, HealthRecord, InsurancePolicy, ClaimSubmission, AuditEvent, ClaimPrivateInputs, TerminologyMode, ToastMessage } from './types';
+import { UserRole, HealthRecord, InsurancePolicy, ClaimSubmission, AuditEvent, ClaimPrivateInputs, TerminologyMode, ToastMessage, PatientProfile } from './types';
 import {
   INITIAL_POLICY,
   INITIAL_HEALTH_RECORDS,
@@ -19,7 +19,8 @@ import {
   PATIENT_ADDRESS,
   REGISTRY_CONTRACT_ADDRESS,
   SETTLEMENT_CONTRACT_ADDRESS,
-  VERIFIER_CONTRACT_ADDRESS
+  VERIFIER_CONTRACT_ADDRESS,
+  PRESET_PATIENTS
 } from './fixtures/mockData';
 import { generateHealthClaimProof, generateTamperedProof } from './lib/zkp';
 import { CERTIFIED_GROTH16_CIRCUIT } from './fixtures/groth16Artifacts';
@@ -33,6 +34,7 @@ export function App() {
   const [policy, setPolicy] = useState<InsurancePolicy>(INITIAL_POLICY);
   const [claims, setClaims] = useState<ClaimSubmission[]>(INITIAL_SETTLED_CLAIMS);
   const [auditLogs, setAuditLogs] = useState<AuditEvent[]>(INITIAL_AUDIT_LOGS);
+  const [patientProfile, setPatientProfile] = useState<PatientProfile>(PRESET_PATIENTS[0]);
   const [isBackendOnline, setIsBackendOnline] = useState(true);
   const [demoLogs, setDemoLogs] = useState<string[]>([
     `System Initialized: BN254 Curve & Groth16 circuit (${CERTIFIED_GROTH16_CIRCUIT.nonLinearConstraints} R1CS constraints loaded).`,
@@ -95,6 +97,13 @@ export function App() {
   }, []);
 
   // Patient Actions
+  const handleUpdatePatientProfile = (newProfile: PatientProfile) => {
+    setPatientProfile(newProfile);
+    setPolicy(prev => ({ ...prev, patientName: newProfile.name }));
+    addToast('success', 'EHR Profile Synchronized', `Active patient switched to ${newProfile.name} (${newProfile.phone}). Records decrypted.`);
+    addLog(`[EHR Identity] Switched active patient to ${newProfile.name} (Phone: ${newProfile.phone}, ID: #${newProfile.patientId}, Hospital: ${newProfile.hospital})`);
+  };
+
   const handleGrantAccess = (recordId: string, doctorAddress: string, doctorName: string, specialty: string, role: string = "Specialist") => {
     // Sync with backend service in background
     api.grantAccess({
@@ -634,6 +643,8 @@ export function App() {
           <PatientView
             records={records}
             policy={policy}
+            patientProfile={patientProfile}
+            onUpdatePatientProfile={handleUpdatePatientProfile}
             auditLogs={auditLogs}
             onGrantAccess={handleGrantAccess}
             onRevokeAccess={handleRevokeAccess}
@@ -648,6 +659,7 @@ export function App() {
         {currentRole === 'hospital' && (
           <HospitalView
             policy={policy}
+            patientProfile={patientProfile}
             onClaimSubmitted={handleClaimSubmitted}
             onTestReplayAttack={handleTestReplayAttack}
             onTestUnaccreditedHospital={handleTestUnaccreditedHospital}

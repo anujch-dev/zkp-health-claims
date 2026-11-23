@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { Building2, ShieldCheck, Cpu, EyeOff, Lock, CheckCircle2, AlertTriangle, FileCheck, RefreshCw, Copy, Check, ArrowRight } from 'lucide-react';
-import { AccreditedHospital, InsurancePolicy, ClaimSubmission, ClaimPrivateInputs, TerminologyMode, UserRole } from '../types';
+import React, { useState, useEffect } from 'react';
+import { Building2, ShieldCheck, Cpu, EyeOff, Lock, CheckCircle2, AlertTriangle, FileCheck, RefreshCw, Copy, Check, ArrowRight, User, Phone, Hash } from 'lucide-react';
+import { AccreditedHospital, InsurancePolicy, ClaimSubmission, ClaimPrivateInputs, TerminologyMode, UserRole, PatientProfile } from '../types';
 import { ACCREDITED_HOSPITALS, HOSPITAL_MERKLE_ROOT } from '../fixtures/mockData';
 import { generateHealthClaimProof, CircuitValidationResult } from '../lib/zkp';
 import { api } from '../lib/api';
@@ -8,6 +8,7 @@ import { CERTIFIED_GROTH16_CIRCUIT } from '../fixtures/groth16Artifacts';
 
 interface HospitalViewProps {
   policy: InsurancePolicy;
+  patientProfile?: PatientProfile;
   onClaimSubmitted: (submission: ClaimSubmission) => void;
   onTestReplayAttack?: () => void;
   onTestUnaccreditedHospital?: () => void;
@@ -19,6 +20,7 @@ interface HospitalViewProps {
 
 export const HospitalView: React.FC<HospitalViewProps> = ({
   policy,
+  patientProfile,
   onClaimSubmitted,
   isProcessing,
   terminologyMode = 'plain',
@@ -32,6 +34,37 @@ export const HospitalView: React.FC<HospitalViewProps> = ({
   const [diagnosisNotes, setDiagnosisNotes] = useState<string>('Intractable migraine with aura, non-responsive to NSAIDs. Scheduled contrast MRI.');
   const [prescriptions, setPrescriptions] = useState<string>('Sumatriptan 100mg, Ondansetron 4mg');
   const [claimNonce, setClaimNonce] = useState<string>(() => '0x' + Math.random().toString(16).slice(2, 10));
+
+  // Sync with active patient profile if selected from Patient Login / Multi-User Test
+  useEffect(() => {
+    if (patientProfile) {
+      if (patientProfile.hospital) {
+        const matchingHosp = ACCREDITED_HOSPITALS.find(h => h.name.toLowerCase() === patientProfile.hospital.toLowerCase());
+        if (matchingHosp) {
+          setSelectedHospital(matchingHosp);
+        }
+      }
+      if (patientProfile.primaryProcedureCode) {
+        setSelectedProcedureCode(patientProfile.primaryProcedureCode);
+        const proc = policy.coveredProcedures.find(p => p.code === patientProfile.primaryProcedureCode);
+        if (proc) {
+          const defaultAmounts: Record<string, number> = {
+            'CPT-70553': 2400,
+            'CPT-93000': 350,
+            'CPT-99214': 220,
+            'CPT-43239': 1850,
+          };
+          setClaimAmount(defaultAmounts[patientProfile.primaryProcedureCode] || Math.min(proc.maxCoveredAmount, 1000));
+        }
+      }
+      if (patientProfile.primaryDiagnosisCode) {
+        setDiagnosisCode(patientProfile.primaryDiagnosisCode);
+      }
+      if (patientProfile.primaryDiagnosis) {
+        setDiagnosisNotes(patientProfile.primaryDiagnosis);
+      }
+    }
+  }, [patientProfile, policy.coveredProcedures]);
 
   const [provingStatus, setProvingStatus] = useState<'idle' | 'proving' | 'success' | 'failed'>('idle');
   const [circuitResult, setCircuitResult] = useState<CircuitValidationResult | null>(null);
@@ -279,15 +312,44 @@ export const HospitalView: React.FC<HospitalViewProps> = ({
 
           <div className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-clinical-text mb-1">
-                Patient & Verified Policy Commitment
+              <label className="block text-xs font-semibold text-clinical-text mb-1 flex items-center justify-between">
+                <span>Active Patient & Verified Policy Commitment</span>
+                {patientProfile && (
+                  <span className="text-[10px] text-sage-800 font-mono font-medium bg-sage-100 px-2 py-0.5 rounded border border-sage-200">
+                    EHR Synced
+                  </span>
+                )}
               </label>
-              <div className="p-3 rounded-xl bg-alabaster-50 border border-alabaster-200 text-xs space-y-1 font-mono">
-                <div className="flex justify-between">
-                  <span className="text-clinical-muted font-sans">Patient:</span>
-                  <span className="text-clinical-text">{policy.patientName} ({policy.patientAddress.slice(0, 6)}...{policy.patientAddress.slice(-4)})</span>
+              <div className="p-3 rounded-xl bg-alabaster-50 border border-alabaster-200 text-xs space-y-1.5 font-mono">
+                <div className="flex justify-between items-center">
+                  <span className="text-clinical-muted font-sans flex items-center gap-1">
+                    <User className="h-3 w-3 text-sage-600" /> Patient Name:
+                  </span>
+                  <span className="text-clinical-text font-semibold font-sans">
+                    {patientProfile?.name || policy.patientName}
+                  </span>
                 </div>
-                <div className="flex justify-between">
+                {patientProfile?.phone && (
+                  <div className="flex justify-between items-center text-[11px]">
+                    <span className="text-clinical-muted font-sans flex items-center gap-1">
+                      <Phone className="h-3 w-3 text-sage-600" /> Phone:
+                    </span>
+                    <span className="text-clinical-text">
+                      {patientProfile.phone}
+                    </span>
+                  </div>
+                )}
+                {patientProfile?.patientId && (
+                  <div className="flex justify-between items-center text-[11px]">
+                    <span className="text-clinical-muted font-sans flex items-center gap-1">
+                      <Hash className="h-3 w-3 text-sage-600" /> EHR Record ID:
+                    </span>
+                    <span className="text-sage-800 font-bold bg-sage-100 px-1.5 py-0.5 rounded border border-sage-200">
+                      #{patientProfile.patientId}
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center pt-1 border-t border-alabaster-200">
                   <span className="text-clinical-muted font-sans">Policy Limit Remaining:</span>
                   <span className="text-sage-700 font-bold">${policy.remainingCoverage.toLocaleString()}</span>
                 </div>
