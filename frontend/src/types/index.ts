@@ -2,6 +2,15 @@ export type UserRole = 'patient' | 'hospital' | 'insurer' | 'demo' | 'architectu
 
 export type GranularRole = 'Doctor' | 'Specialist' | 'EmergencyResponder' | 'Auditor';
 
+export type TerminologyMode = 'plain' | 'technical';
+
+export interface ToastMessage {
+  id: string;
+  type: 'success' | 'info' | 'warning' | 'error';
+  title: string;
+  message: string;
+}
+
 export interface DoctorAccess {
   doctorAddress: string;
   doctorName: string;
