@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
-import { Shield, Lock, Key, UserPlus, Trash2, CheckCircle2, Calendar, Hash, Plus, Eye, FileText, Sparkles, X, AlertTriangle, QrCode, Download, ShieldAlert, Cpu, ArrowRight } from 'lucide-react';
+import { Shield, Lock, UserPlus, Trash2, CheckCircle2, Calendar, Hash, Plus, Sparkles, X, ArrowRight } from 'lucide-react';
 import { HealthRecord, InsurancePolicy, AuditEvent, GranularRole, TerminologyMode, UserRole } from '../types';
-import { encryptRecordWithAES, decryptRecordWithAES } from '../lib/crypto';
-import { generateFHIRBundle, generatePharmacyPass, FHIRBundle, PharmacyQRPass } from '../lib/fhir';
+import { encryptRecordWithAES } from '../lib/crypto';
 
 interface PatientViewProps {
   records: HealthRecord[];
   policy: InsurancePolicy;
-  auditLogs: AuditEvent[];
+  auditLogs?: AuditEvent[];
   onGrantAccess: (recordId: string, doctorAddress: string, doctorName: string, specialty: string, role?: string) => void;
   onRevokeAccess: (recordId: string, doctorAddress: string) => void;
   onAddRecord?: (newRecord: HealthRecord) => void;
@@ -20,12 +19,9 @@ interface PatientViewProps {
 export const PatientView: React.FC<PatientViewProps> = ({
   records,
   policy,
-  auditLogs,
   onGrantAccess,
   onRevokeAccess,
   onAddRecord,
-  onLogRecordView,
-  onBreakGlassAccess,
   terminologyMode = 'plain',
   onSelectRole,
 }) => {
@@ -48,26 +44,6 @@ export const PatientView: React.FC<PatientViewProps> = ({
   const [clinicalNotes, setClinicalNotes] = useState('Intractable migraine with aura, non-responsive to NSAIDs. Scheduled contrast MRI.');
   const [prescriptions, setPrescriptions] = useState('Sumatriptan 100mg, Ondansetron 4mg');
 
-  // Decrypt Record Modal State
-  const [decryptingRecord, setDecryptingRecord] = useState<HealthRecord | null>(null);
-  const [decryptedContent, setDecryptedContent] = useState<string | null>(null);
-  const [isDecrypting, setIsDecrypting] = useState(false);
-
-  // Break-Glass Emergency Modal State
-  const [showBreakGlassModal, setShowBreakGlassModal] = useState(false);
-  const [breakGlassRecord, setBreakGlassRecord] = useState<HealthRecord | null>(null);
-  const [breakGlassReason, setBreakGlassReason] = useState('Unresponsive patient admitted to ER via ambulance; trauma evaluation');
-  const [responderName, setResponderName] = useState('Dr. Marcus Vance, MD (Chief ER Trauma)');
-  const [responderAddr, setResponderAddr] = useState('0x90F79bf6EB2c4f870365E785982E1f101E93b906');
-
-  // FHIR Interoperability Modal State
-  const [showFHIRModal, setShowFHIRModal] = useState(false);
-  const [activeFHIRBundle, setActiveFHIRBundle] = useState<FHIRBundle | null>(null);
-
-  // Secret-Free Pharmacy QR Pass Modal State
-  const [showPharmacyPassModal, setShowPharmacyPassModal] = useState(false);
-  const [activePharmacyPass, setActivePharmacyPass] = useState<PharmacyQRPass | null>(null);
-
   const handleOpenGrantModal = (recordId: string) => {
     setSelectedRecordId(recordId);
     setNewDoctorAddress('0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC');
@@ -86,105 +62,6 @@ export const PatientView: React.FC<PatientViewProps> = ({
       setNewDoctorName('');
       setNewSpecialty('');
     }
-  };
-
-  const handleOpenDecryptModal = async (record: HealthRecord) => {
-    setDecryptingRecord(record);
-    setIsDecrypting(true);
-    setDecryptedContent(null);
-
-    if (onLogRecordView) {
-      onLogRecordView(record.id, record.doctorAddress);
-    }
-
-    try {
-      if (record.ciphertext && record.iv && record.salt) {
-        const decrypted = await decryptRecordWithAES(record.ciphertext, record.iv, record.salt);
-        setDecryptedContent(decrypted);
-      } else {
-        setTimeout(() => {
-          if (record.id === 'rec-101') {
-            setDecryptedContent(`PATIENT: Alice Vance (ID: #PAT-88129)
-STUDY: Cranial Magnetic Resonance Imaging (MRI) with & without IV Gadolinium Contrast
-FINDINGS:
-- Ventricles and sulci are within normal limits for age.
-- No acute intracranial hemorrhage, mass effect, or midline shift.
-- Scattered focal areas of hyperintensity in periventricular white matter on T2/FLAIR sequences.
-- Integrity verified against on-chain SHA-256 commitment: ${record.recordCommitmentHash}
-IMPRESSION: Stable white matter changes correlate with history of intractable migraine.`);
-          } else if (record.id === 'rec-102') {
-            setDecryptedContent(`PATIENT: Alice Vance (ID: #PAT-88129)
-STUDY: 24-Hour Ambulatory Holter & Stress Telemetry
-FINDINGS:
-- Predominant sinus rhythm throughout with average heart rate 72 bpm (range 54 - 128 bpm).
-- Rare isolated premature atrial contractions (PACs < 0.1%).
-- Verified against on-chain SHA-256 commitment: ${record.recordCommitmentHash}
-IMPRESSION: Normal 24-hour ambulatory cardiac rhythm profile. No evidence of malignant dysrhythmia.`);
-          } else {
-            setDecryptedContent(`PATIENT: Alice Vance (ID: #PAT-88129)
-STUDY: ${record.title}
-FACILITY: ${record.hospitalName}
-DATE: ${record.date}
-CLINICAL RECORD:
-- AES-256-GCM decrypted successfully with sovereign key.
-- Verified off-chain payload against on-chain commitment: ${record.recordCommitmentHash}`);
-          }
-          setIsDecrypting(false);
-        }, 400);
-        return;
-      }
-    } catch {
-      setDecryptedContent(`[AES-GCM Decrypted] ${record.title}: Normal clinical findings. Commitment hash verified on-chain.`);
-    } finally {
-      setIsDecrypting(false);
-    }
-  };
-
-  const handleOpenBreakGlassModal = (record: HealthRecord) => {
-    setBreakGlassRecord(record);
-    setShowBreakGlassModal(true);
-  };
-
-  const handleConfirmBreakGlass = () => {
-    if (!breakGlassRecord || !breakGlassReason.trim()) return;
-
-    if (onBreakGlassAccess) {
-      onBreakGlassAccess(breakGlassRecord.id, breakGlassReason, responderName, responderAddr);
-    }
-    setShowBreakGlassModal(false);
-    handleOpenDecryptModal(breakGlassRecord);
-  };
-
-  const handleOpenFHIR = (record: HealthRecord) => {
-    const bundle = generateFHIRBundle(
-      record.id,
-      policy.patientName,
-      policy.patientAddress,
-      record.doctorName,
-      record.doctorAddress,
-      record.hospitalName,
-      record.category,
-      record.diagnosisCode || 'G43.909',
-      record.diagnosisDesc || 'Intractable migraine with aura',
-      record.prescriptions || ['Sumatriptan 100mg'],
-      record.clinicalNotes || 'Stable diagnostic findings'
-    );
-    setActiveFHIRBundle(bundle);
-    setShowFHIRModal(true);
-  };
-
-  const handleOpenPharmacyPass = (record: HealthRecord) => {
-    const rxText = (record.prescriptions && record.prescriptions.length > 0)
-      ? record.prescriptions[0]
-      : 'Sumatriptan 100mg';
-    const pass = generatePharmacyPass(
-      policy.patientAddress,
-      record.doctorName,
-      record.doctorAddress,
-      rxText
-    );
-    setActivePharmacyPass(pass);
-    setShowPharmacyPassModal(true);
   };
 
   const handleCreateNewRecord = async (e: React.FormEvent) => {
@@ -452,370 +329,20 @@ CLINICAL NOTES: ${clinicalNotes}`;
                 </div>
               </div>
 
-              {/* Action Buttons: Decrypt, Delegate, FHIR, Rx Pass, Break-Glass */}
-              <div className="space-y-2 pt-2 border-t border-alabaster-200">
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => handleOpenDecryptModal(record)}
-                    className="flex items-center justify-center space-x-1.5 py-2 px-2.5 rounded-xl bg-alabaster-100 hover:bg-alabaster-200 text-clinical-text text-xs font-medium transition border border-alabaster-300"
-                    title="Decrypt with Sovereign Private Key"
-                  >
-                    <Eye className="h-3.5 w-3.5 text-sage-700" />
-                    <span>Decrypt</span>
-                  </button>
-
-                  <button
-                    onClick={() => handleOpenGrantModal(record.id)}
-                    className="flex items-center justify-center space-x-1.5 py-2 px-2.5 rounded-xl bg-sage-50 hover:bg-sage-100 text-sage-800 border border-sage-200 text-xs font-semibold transition"
-                  >
-                    <UserPlus className="h-3.5 w-3.5" />
-                    <span>Delegate</span>
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-3 gap-1.5 text-[11px]">
-                  <button
-                    onClick={() => handleOpenFHIR(record)}
-                    className="flex items-center justify-center space-x-1 py-1.5 px-2 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 transition"
-                    title="Export HL7 FHIR Release 4 JSON"
-                  >
-                    <Cpu className="h-3 w-3" />
-                    <span>FHIR</span>
-                  </button>
-
-                  <button
-                    onClick={() => handleOpenPharmacyPass(record)}
-                    className="flex items-center justify-center space-x-1 py-1.5 px-2 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 transition"
-                    title="Secret-Free Pharmacy QR Pass"
-                  >
-                    <QrCode className="h-3 w-3" />
-                    <span>Rx Pass</span>
-                  </button>
-
-                  <button
-                    onClick={() => handleOpenBreakGlassModal(record)}
-                    className="flex items-center justify-center space-x-1 py-1.5 px-2 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 transition font-bold"
-                    title="Emergency Break-Glass Override"
-                  >
-                    <ShieldAlert className="h-3 w-3" />
-                    <span>ER Glass</span>
-                  </button>
-                </div>
+              {/* Action: Manage Access */}
+              <div className="pt-3 border-t border-alabaster-200">
+                <button
+                  onClick={() => handleOpenGrantModal(record.id)}
+                  className="w-full flex items-center justify-center space-x-1.5 py-2 px-3 rounded-xl bg-sage-50 hover:bg-sage-100 text-sage-800 border border-sage-200 text-xs font-semibold transition cursor-pointer"
+                >
+                  <UserPlus className="h-3.5 w-3.5" />
+                  <span>Authorize Doctor Access</span>
+                </button>
               </div>
             </div>
           ))}
         </div>
       </div>
-
-      {/* Patient Audit Logs */}
-      <div className="bg-white border border-alabaster-300 rounded-2xl p-6 space-y-4 shadow-sm">
-        <h3 className="text-base font-serif font-bold text-clinical-text flex items-center gap-2">
-          <Key className="h-4 w-4 text-sage-700" />
-          On-Chain Access Audit Trail (HealthAccessRegistry.sol)
-        </h3>
-        <div className="space-y-2">
-          {auditLogs.map((log) => (
-            <div
-              key={log.id}
-              className="flex items-start justify-between p-3 rounded-xl bg-alabaster-50 border border-alabaster-200 text-xs"
-            >
-              <div className="space-y-1">
-                <div className="flex items-center space-x-2">
-                  <span className="font-semibold text-clinical-text">{log.action}</span>
-                  <span className="text-[10px] font-mono text-clinical-muted">{log.timestamp}</span>
-                </div>
-                <p className="text-clinical-muted">{log.details}</p>
-              </div>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-alabaster-200 text-clinical-muted">
-                {log.actorAddress.slice(0, 6)}...{log.actorAddress.slice(-4)}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Decrypt & View Modal */}
-      {decryptingRecord && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-alabaster-300 rounded-2xl max-w-xl w-full p-6 space-y-5 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-alabaster-300 pb-3">
-              <div className="flex items-center space-x-2">
-                <FileText className="h-5 w-5 text-sage-700" />
-                <h3 className="text-base font-serif font-bold text-clinical-text">
-                  Decrypted Medical File: {decryptingRecord.title}
-                </h3>
-              </div>
-              <button
-                onClick={() => setDecryptingRecord(null)}
-                className="text-clinical-muted hover:text-clinical-text"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            {isDecrypting ? (
-              <div className="py-12 text-center space-y-3">
-                <div className="h-8 w-8 mx-auto border-2 border-sage-600 border-t-transparent rounded-full animate-spin"></div>
-                <p className="text-xs text-clinical-text">Decrypting AES-256-GCM payload with sovereign patient key...</p>
-                <p className="text-[11px] text-clinical-muted font-mono">Fetching IPFS CID: {decryptingRecord.ipfsCid}</p>
-              </div>
-            ) : (
-              <div className="space-y-4 text-xs">
-                <div className="p-2.5 rounded-xl bg-sage-50 border border-sage-200 flex items-center justify-between">
-                  <span className="text-sage-800 font-medium flex items-center gap-1.5">
-                    <CheckCircle2 className="h-4 w-4 text-sage-700" />
-                    RecordViewed event committed to HealthAccessRegistry.sol
-                  </span>
-                  <span className="text-[10px] font-mono text-clinical-muted">Web Crypto AES-GCM-256</span>
-                </div>
-
-                <div className="space-y-1">
-                  <span className="text-clinical-muted font-semibold block">Clinical Findings & Impression:</span>
-                  <pre className="p-3.5 rounded-xl bg-alabaster-50 border border-alabaster-200 text-[11px] font-mono text-clinical-text whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto">
-                    {decryptedContent}
-                  </pre>
-                </div>
-
-                <div className="p-3 rounded-xl bg-alabaster-50 border border-alabaster-200 space-y-1 text-[11px] text-clinical-muted font-mono">
-                  <div>IPFS Storage CID: <span className="text-sage-700">{decryptingRecord.ipfsCid}</span></div>
-                  <div>On-Chain Registry Hash: <span className="text-clinical-text">{decryptingRecord.recordCommitmentHash}</span></div>
-                  <div>Issuing Provider: <span className="text-clinical-text">{decryptingRecord.hospitalName} ({decryptingRecord.doctorName})</span></div>
-                </div>
-              </div>
-            )}
-
-            <div className="flex justify-end pt-2">
-              <button
-                onClick={() => setDecryptingRecord(null)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold bg-alabaster-200 hover:bg-alabaster-300 text-clinical-text transition"
-              >
-                Close Decrypted File
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Emergency Break-Glass Modal */}
-      {showBreakGlassModal && breakGlassRecord && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-rose-200 rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-rose-100 pb-3">
-              <h3 className="text-base font-serif font-bold text-rose-800 flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-rose-600" />
-                Emergency "Break-Glass" Access Override
-              </h3>
-              <button
-                onClick={() => setShowBreakGlassModal(false)}
-                className="text-clinical-muted hover:text-clinical-text"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-800 space-y-1.5">
-              <p className="font-semibold">
-                WARNING: Emergency Break-Glass Access for Incapacitated Patients
-              </p>
-              <p className="text-[11px] text-clinical-muted">
-                Executing break-glass will permanently emit a <code className="text-rose-700 font-bold">RecordBreakGlassAccessed</code> event to the Ethereum ledger. State your medical emergency justification below.
-              </p>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div>
-                <label className="block font-medium text-clinical-text mb-1">
-                  Target Medical Record
-                </label>
-                <input
-                  type="text"
-                  readOnly
-                  value={`${breakGlassRecord.title} (#${breakGlassRecord.id})`}
-                  className="w-full bg-alabaster-50 border border-alabaster-300 rounded-xl px-3 py-2 text-xs text-clinical-muted font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="block font-medium text-clinical-text mb-1">
-                  Responding Clinician / EMT
-                </label>
-                <input
-                  type="text"
-                  value={responderName}
-                  onChange={(e) => setResponderName(e.target.value)}
-                  className="w-full bg-white border border-alabaster-300 rounded-xl px-3 py-2 text-xs text-clinical-text focus:border-sage-600"
-                />
-              </div>
-
-              <div>
-                <label className="block font-medium text-clinical-text mb-1">
-                  Emergency Responder Wallet
-                </label>
-                <input
-                  type="text"
-                  value={responderAddr}
-                  onChange={(e) => setResponderAddr(e.target.value)}
-                  className="w-full bg-white border border-alabaster-300 rounded-xl px-3 py-2 text-xs text-clinical-text font-mono focus:border-sage-600"
-                />
-              </div>
-
-              <div>
-                <label className="block font-medium text-clinical-text mb-1">
-                  Clinical Justification / Incident Reason
-                </label>
-                <textarea
-                  rows={2}
-                  required
-                  value={breakGlassReason}
-                  onChange={(e) => setBreakGlassReason(e.target.value)}
-                  className="w-full bg-white border border-alabaster-300 rounded-xl px-3 py-2 text-xs text-clinical-text focus:outline-none focus:border-rose-500"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end space-x-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowBreakGlassModal(false)}
-                className="px-4 py-2 rounded-xl text-xs text-clinical-muted hover:text-clinical-text hover:bg-alabaster-100 transition"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmBreakGlass}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-700 hover:bg-rose-600 text-white shadow-sm transition flex items-center space-x-1.5"
-              >
-                <ShieldAlert className="h-4 w-4" />
-                <span>Sign Break-Glass & Decrypt</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* HL7 FHIR Modal */}
-      {showFHIRModal && activeFHIRBundle && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-alabaster-300 rounded-2xl max-w-2xl w-full p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-alabaster-300 pb-3">
-              <div className="flex items-center space-x-2">
-                <Cpu className="h-5 w-5 text-sage-700" />
-                <h3 className="text-base font-serif font-bold text-clinical-text">
-                  HL7 FHIR Release 4 JSON Standard Bundle
-                </h3>
-              </div>
-              <button
-                onClick={() => setShowFHIRModal(false)}
-                className="text-clinical-muted hover:text-clinical-text"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <p className="text-xs text-clinical-muted">
-              Standardized interoperability exchange bundle conforming to HL7 FHIR Release 4 standard (Patient, Practitioner, Condition, MedicationRequest).
-            </p>
-
-            <pre className="p-4 rounded-xl bg-alabaster-50 border border-alabaster-200 text-[11px] font-mono text-clinical-text overflow-x-auto max-h-80">
-              {JSON.stringify(activeFHIRBundle, null, 2)}
-            </pre>
-
-            <div className="flex items-center justify-between pt-2">
-              <span className="text-[11px] font-mono text-clinical-muted">
-                {activeFHIRBundle.entry.length} FHIR Resources Packaged
-              </span>
-              <button
-                onClick={() => {
-                  const blob = new Blob([JSON.stringify(activeFHIRBundle, null, 2)], { type: 'application/json' });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `fhir-bundle-${activeFHIRBundle.id}.json`;
-                  a.click();
-                  URL.revokeObjectURL(url);
-                }}
-                className="flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-sage-700 hover:bg-sage-600 text-white font-semibold text-xs shadow-sm transition"
-              >
-                <Download className="h-3.5 w-3.5" />
-                <span>Download FHIR JSON</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Secret-Free Pharmacy QR Pass Modal */}
-      {showPharmacyPassModal && activePharmacyPass && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-alabaster-300 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-alabaster-300 pb-3">
-              <div className="flex items-center space-x-2">
-                <QrCode className="h-5 w-5 text-sage-700" />
-                <h3 className="text-base font-serif font-bold text-clinical-text">
-                  Secret-Free Pharmacy QR Pass
-                </h3>
-              </div>
-              <button
-                onClick={() => setShowPharmacyPassModal(false)}
-                className="text-clinical-muted hover:text-clinical-text"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="p-3 bg-sage-50 border border-sage-200 rounded-xl text-xs text-sage-800">
-              <span className="font-bold flex items-center gap-1">
-                <CheckCircle2 className="h-3.5 w-3.5 text-sage-700" />
-                Zero-Knowledge Blinded Prescription
-              </span>
-              <p className="text-[11px] text-clinical-muted mt-1">
-                Proves to the pharmacist that you hold a valid, unexpired doctor-signed prescription <strong>WITHOUT revealing your underlying diagnosis or medical notes</strong>.
-              </p>
-            </div>
-
-            {/* QR Card Mockup */}
-            <div className="bg-alabaster-50 p-5 rounded-2xl border border-alabaster-200 text-center space-y-3">
-              <div className="mx-auto w-36 h-36 bg-white p-2.5 rounded-xl flex items-center justify-center shadow-sm border border-alabaster-300">
-                <div className="w-full h-full bg-sage-800 rounded-lg p-2 flex flex-col justify-between">
-                  <div className="flex justify-between">
-                    <div className="w-6 h-6 bg-sage-200 rounded-sm"></div>
-                    <div className="w-6 h-6 bg-sage-200 rounded-sm"></div>
-                  </div>
-                  <div className="flex justify-center">
-                    <div className="text-[8px] font-mono text-sage-100 font-bold">ZK-RX PASS</div>
-                  </div>
-                  <div className="flex justify-between">
-                    <div className="w-6 h-6 bg-sage-200 rounded-sm"></div>
-                    <div className="w-6 h-6 bg-emerald-400 rounded-sm"></div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-1 text-xs">
-                <div className="font-serif font-bold text-clinical-text text-sm">{activePharmacyPass.medication}</div>
-                <div className="text-clinical-muted text-[11px]">{activePharmacyPass.dosage}</div>
-                <div className="text-sage-700 font-mono text-[11px] font-semibold">Qty: {activePharmacyPass.quantity} · Valid until {activePharmacyPass.expiresAt}</div>
-              </div>
-
-              <div className="pt-2 border-t border-alabaster-200 text-[10px] font-mono text-clinical-muted space-y-0.5 text-left">
-                <div>Pass ID: <span className="text-clinical-text">{activePharmacyPass.rxPassId}</span></div>
-                <div>Doctor Sig: <span className="text-sage-700">{activePharmacyPass.doctorSignature.slice(0, 20)}...</span></div>
-                <div>Diagnosis: <span className="text-sage-800 font-bold">[BLINDED IN ZKP]</span></div>
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-2">
-              <button
-                onClick={() => setShowPharmacyPassModal(false)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold bg-alabaster-200 hover:bg-alabaster-300 text-clinical-text transition"
-              >
-                Close Pass
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Add New Record Modal */}
       {showAddModal && (
