@@ -202,59 +202,59 @@ export const GuidedDemoView: React.FC<GuidedDemoViewProps> = ({
           ========================================================================= */}
       <section className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-2 sm:gap-3">
-          {/* Image Panel 1: Healthcare consultation */}
+          {/* Image Panel 1: Modern Accredited Hospital Facility */}
           <div className="relative h-64 sm:h-72 lg:h-80 bg-[#E7E1D7] overflow-hidden">
             {!gal1Failed ? (
               <img
-                src="https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=800&q=80"
-                alt="Doctor listening to patient consultation"
-                className="w-full h-full object-cover object-center grayscale-[10%]"
+                src="https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&w=800&q=80"
+                alt="Modern accredited hospital facility corridor and patient care ward"
+                className="w-full h-full object-cover object-center grayscale-[5%] contrast-[1.02]"
                 onError={() => setGal1Failed(true)}
                 loading="lazy"
               />
             ) : (
               <div className="w-full h-full bg-[#FAF9F6] border border-[#E7E1D7] p-6 flex flex-col justify-between">
-                <span className="text-[10px] uppercase tracking-widest text-[#5F685F]">Clinical Consultation</span>
-                <p className="font-serif text-lg text-[#294638] font-bold">Confidential Care</p>
-                <p className="text-xs text-[#5F685F]">Client-side encryption protects every doctor visit.</p>
+                <span className="text-[10px] uppercase tracking-widest text-[#5F685F]">Hospital Network</span>
+                <p className="font-serif text-lg text-[#294638] font-bold">Accredited Facilities</p>
+                <p className="text-xs text-[#5F685F]">Verified in-network hospitals anchored via Merkle membership.</p>
               </div>
             )}
           </div>
 
-          {/* Image Panel 2: Secure technology */}
+          {/* Image Panel 2: Medical Diagnostic Imaging & Clinical Analysis */}
           <div className="relative h-64 sm:h-72 lg:h-80 bg-[#E7E1D7] overflow-hidden">
             {!gal2Failed ? (
               <img
-                src="https://images.unsplash.com/photo-1639762681485-074b7f938ba0?auto=format&fit=crop&w=800&q=80"
-                alt="Abstract digital security nodes"
-                className="w-full h-full object-cover object-center contrast-[1.05]"
+                src="https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&w=800&q=80"
+                alt="Physician reviewing medical diagnostic imaging and clinical records"
+                className="w-full h-full object-cover object-center contrast-[1.02]"
                 onError={() => setGal2Failed(true)}
                 loading="lazy"
               />
             ) : (
               <div className="w-full h-full bg-[#294638] text-[#FAF9F6] p-6 flex flex-col justify-between">
-                <span className="text-[10px] uppercase tracking-widest text-[#A6B3A1]">Zero-Knowledge Proofs</span>
-                <p className="font-serif text-lg font-bold">Cryptographic Validation</p>
-                <p className="text-xs text-[#A6B3A1]">Mathematical proofs enforce policy limits automatically.</p>
+                <span className="text-[10px] uppercase tracking-widest text-[#A6B3A1]">Clinical Diagnostics</span>
+                <p className="font-serif text-lg font-bold">Private Medical Imaging</p>
+                <p className="text-xs text-[#A6B3A1]">Zero-knowledge proofs verify procedures without disclosing pathology.</p>
               </div>
             )}
           </div>
 
-          {/* Image Panel 3: Insurance verification */}
+          {/* Image Panel 3: Healthcare Care Team & Patient Consultation */}
           <div className="relative h-64 sm:h-72 lg:h-80 bg-[#E7E1D7] overflow-hidden">
             {!gal3Failed ? (
               <img
-                src="https://images.unsplash.com/photo-1450133064473-71024230f91b?auto=format&fit=crop&w=800&q=80"
-                alt="Professional reviewing health claim verification documents"
-                className="w-full h-full object-cover object-center grayscale-[10%]"
+                src="https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?auto=format&fit=crop&w=800&q=80"
+                alt="Hospital medical team collaborating on patient treatment and healthcare claims"
+                className="w-full h-full object-cover object-center grayscale-[5%] contrast-[1.02]"
                 onError={() => setGal3Failed(true)}
                 loading="lazy"
               />
             ) : (
               <div className="w-full h-full bg-[#FAF9F6] border border-[#E7E1D7] p-6 flex flex-col justify-between">
-                <span className="text-[10px] uppercase tracking-widest text-[#5F685F]">Smart Settlement</span>
-                <p className="font-serif text-lg text-[#294638] font-bold">Verifiable Payouts</p>
-                <p className="text-xs text-[#5F685F]">Automated escrow release upon proof verification.</p>
+                <span className="text-[10px] uppercase tracking-widest text-[#5F685F]">Medical Team</span>
+                <p className="font-serif text-lg text-[#294638] font-bold">Collaborative Care</p>
+                <p className="text-xs text-[#5F685F]">Physicians, patients, and insurers securely connected through cryptography.</p>
               </div>
             )}
           </div>
