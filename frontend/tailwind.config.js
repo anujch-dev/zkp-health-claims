@@ -4,23 +4,45 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
-  darkMode: 'class',
   theme: {
     extend: {
       colors: {
-        brand: {
-          50: '#f0f9ff',
-          100: '#e0f2fe',
-          500: '#0ea5e9',
-          600: '#0284c7',
-          700: '#0369a1',
+        sage: {
+          50: '#F4F6F4',
+          100: '#E6ECE9',
+          200: '#D2DDD8',
+          300: '#A8BCB3',
+          400: '#6F8A80',
+          500: '#4D6D63',
+          600: '#3D5A50',
+          700: '#2F4F46',
+          800: '#233B34',
+          900: '#182823',
         },
-        zk: {
-          purple: '#8b5cf6',
-          dark: '#0f172a',
-          card: '#1e293b',
-          border: '#334155',
+        alabaster: {
+          50: '#FAFAF8',
+          100: '#F7F7F5',
+          200: '#EAECE8',
+          300: '#E2E5E0',
+          400: '#D5D9D2',
+        },
+        clinical: {
+          text: '#1C2522',
+          muted: '#5C6B64',
+          card: '#FFFFFF',
+          border: '#E2E5E0',
+          amber: '#8A4B1A',
+          amberBg: '#FBF0E4',
+          amberBorder: '#ECC9A5',
+          burgundy: '#8B3A3A',
+          burgundyBg: '#FBEBEB',
+          burgundyBorder: '#E8BDBD',
         }
+      },
+      fontFamily: {
+        serif: ['"Playfair Display"', 'Georgia', 'serif'],
+        sans: ['"Plus Jakarta Sans"', '"Inter"', 'system-ui', '-apple-system', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'monospace'],
       }
     },
   },
