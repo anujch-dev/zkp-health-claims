@@ -374,8 +374,12 @@ export function App() {
   const pendingClaimsCount = claims.filter(c => c.status === 'VERIFIED').length;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
-      <Navbar currentRole={currentRole} walletBalance={walletBalance} />
+    <div className="min-h-screen bg-[#F7F7F5] text-clinical-text flex flex-col">
+      <Navbar
+        currentRole={currentRole}
+        walletBalance={walletBalance}
+        onSelectRole={setCurrentRole}
+      />
       <RoleSwitcher
         currentRole={currentRole}
         onSelectRole={setCurrentRole}
@@ -404,6 +408,7 @@ export function App() {
             onTestTamperedProof={handleTestTamperedProof}
             onTestUnaccreditedHospital={handleTestUnaccreditedHospital}
             onResetDemo={handleResetDemo}
+            onSelectRole={setCurrentRole}
             isProcessing={isProcessing}
             demoLogs={demoLogs}
           />
@@ -448,9 +453,13 @@ export function App() {
         )}
       </main>
 
-      <footer className="border-t border-slate-900 bg-slate-950 py-6 text-center text-xs text-slate-500">
-        <p>ZK-HealthClaims · Privacy-Preserving Health Records & ZKP Insurance Claims · WEB3 · W3-01</p>
-        <p className="mt-1 font-mono text-[11px]">MIT Licensed · Client-side Groth16 Prover & EVM Smart Contracts</p>
+      <footer className="border-t border-alabaster-300 bg-white py-6 text-center text-xs text-clinical-muted">
+        <p className="font-serif font-semibold text-clinical-text">
+          ZK-HealthClaims · Privacy-Preserving Health Records & ZKP Insurance Claims · WEB3 · W3-01
+        </p>
+        <p className="mt-1 font-mono text-[11px] text-clinical-muted">
+          Client-side Groth16 Prover & EVM Smart Contracts · Calm Editorial Clinical Theme
+        </p>
       </footer>
     </div>
   );
