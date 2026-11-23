@@ -19,11 +19,18 @@ import {
   User,
   ChevronDown,
   ChevronUp,
-  Layers
+  Layers,
+  Upload,
+  Check
 } from 'lucide-react';
 import { HealthRecord, InsurancePolicy, AuditEvent, GranularRole, TerminologyMode, UserRole, PatientProfile } from '../types';
 import { encryptRecordWithAES } from '../lib/crypto';
-import { PRESET_PATIENTS, PresetPatientProfile } from '../fixtures/mockData';
+import {
+  PRESET_PATIENTS,
+  PresetPatientProfile,
+  CLINICIAN_DIRECTORY,
+  MEDICAL_STUDY_PRESETS
+} from '../fixtures/mockData';
 
 interface PatientViewProps {
   records: HealthRecord[];
@@ -74,10 +81,14 @@ export const PatientView: React.FC<PatientViewProps> = ({
   const [newSpecialty, setNewSpecialty] = useState('');
   const [newRole, setNewRole] = useState<GranularRole>('Specialist');
   const [showGrantModal, setShowGrantModal] = useState(false);
+  const [showManualDoctorOverride, setShowManualDoctorOverride] = useState(false);
 
   // Add Record Modal State
   const [showAddModal, setShowAddModal] = useState(false);
-  const [newTitle, setNewTitle] = useState('');
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [selectedPresetId, setSelectedPresetId] = useState<string | null>('preset-mri');
+  const [newTitle, setNewTitle] = useState('Cranial Contrast Neuro-MRI & Brainstem Study');
   const [newCategory, setNewCategory] = useState<'Diagnostic' | 'Surgical' | 'Prescription' | 'Lab Result'>('Diagnostic');
   const [newHospital, setNewHospital] = useState(currentProfile.hospital || 'Apex University Health Care');
   const [newDoctor, setNewDoctor] = useState('Dr. Sarah Lin, MD');
@@ -86,6 +97,20 @@ export const PatientView: React.FC<PatientViewProps> = ({
   const [diagnosisDesc, setDiagnosisDesc] = useState('Intractable migraine with aura');
   const [clinicalNotes, setClinicalNotes] = useState('Intractable migraine with aura, non-responsive to NSAIDs. Scheduled contrast MRI.');
   const [prescriptions, setPrescriptions] = useState('Sumatriptan 100mg, Ondansetron 4mg');
+
+  const coveragePercent = Math.min(100, Math.max(0, Math.round((policy.remainingCoverage / policy.maxCoverageLimit) * 100)));
+  const spentCoverage = policy.maxCoverageLimit - policy.remainingCoverage;
+
+  const handleOpenGrantModal = (recordId: string) => {
+    setSelectedRecordId(recordId);
+    const defaultDoc = CLINICIAN_DIRECTORY[0];
+    setNewDoctorAddress(defaultDoc.walletAddress);
+    setNewDoctorName(defaultDoc.name);
+    setNewSpecialty(defaultDoc.specialty);
+    setNewRole('Specialist');
+    setShowManualDoctorOverride(false);
+    setShowGrantModal(true);
+  };
 
   const handleSelectPreset = (preset: PresetPatientProfile) => {
     setIsVerifying(true);
@@ -128,15 +153,6 @@ export const PatientView: React.FC<PatientViewProps> = ({
         setIsProfileDrawerOpen(false);
       }, 400);
     }, 400);
-  };
-
-  const handleOpenGrantModal = (recordId: string) => {
-    setSelectedRecordId(recordId);
-    setNewDoctorAddress('0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC');
-    setNewDoctorName('Dr. Sarah Lin, MD');
-    setNewSpecialty('Neurology');
-    setNewRole('Specialist');
-    setShowGrantModal(true);
   };
 
   const handleSubmitGrant = (e: React.FormEvent) => {
@@ -444,17 +460,31 @@ CLINICAL NOTES: ${clinicalNotes}`;
               VERIFIED ACTIVE
             </span>
           </div>
-          <div className="space-y-1">
+          <div className="space-y-2">
             <h3 className="text-base font-serif font-bold text-clinical-text">{policy.policyNumber}</h3>
             <p className="text-xs text-clinical-muted">{policy.insurerName}</p>
 
-            <div className="pt-3 border-t border-alabaster-200 space-y-1.5 text-xs">
-              <div className="flex justify-between">
-                <span className="text-clinical-muted">Remaining Coverage:</span>
-                <span className="font-mono font-bold text-sage-700">
-                  ${policy.remainingCoverage.toLocaleString()} / ${policy.maxCoverageLimit.toLocaleString()}
+            {/* Visual Coverage Progress Bar */}
+            <div className="pt-2 pb-1 space-y-1.5">
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-medium text-clinical-text">Coverage Limit Reserve:</span>
+                <span className="font-mono font-bold text-sage-800">
+                  {coveragePercent}% Available
                 </span>
               </div>
+              <div className="w-full h-2.5 bg-alabaster-200 rounded-full overflow-hidden border border-alabaster-300">
+                <div
+                  className="h-full bg-gradient-to-r from-sage-600 to-emerald-600 rounded-full transition-all duration-500"
+                  style={{ width: `${coveragePercent}%` }}
+                ></div>
+              </div>
+              <div className="flex justify-between text-[11px] text-clinical-muted font-mono">
+                <span>${spentCoverage.toLocaleString()} spent</span>
+                <span className="text-sage-800 font-semibold">${policy.remainingCoverage.toLocaleString()} / ${policy.maxCoverageLimit.toLocaleString()} USDC</span>
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-alabaster-200 space-y-1 text-xs">
               <div className="flex justify-between">
                 <span className="text-clinical-muted">Valid Until:</span>
                 <span className="font-mono text-clinical-text">{policy.validUntil}</span>
@@ -673,18 +703,110 @@ CLINICAL NOTES: ${clinicalNotes}`;
       {/* Add New Record Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-alabaster-300 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+          <div className="bg-white border border-alabaster-300 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-alabaster-300 pb-3">
-              <h3 className="text-base font-serif font-bold text-clinical-text flex items-center gap-2">
+              <div className="flex items-center space-x-2">
                 <Sparkles className="h-4 w-4 text-sage-700" />
-                Anchor New Encrypted Record (Web Crypto AES-256-GCM)
-              </h3>
+                <div>
+                  <h3 className="text-base font-serif font-bold text-clinical-text">
+                    Add New Medical Record or Study
+                  </h3>
+                  <p className="text-[11px] text-clinical-muted">
+                    End-to-end encrypted on your device · Fully confidential
+                  </p>
+                </div>
+              </div>
               <button
                 onClick={() => setShowAddModal(false)}
-                className="text-clinical-muted hover:text-clinical-text"
+                className="text-clinical-muted hover:text-clinical-text cursor-pointer"
               >
                 <X className="h-4 w-4" />
               </button>
+            </div>
+
+            {/* 1. Drag and Drop Medical File Zone */}
+            <div
+              onDragOver={(e) => { e.preventDefault(); setIsDraggingOver(true); }}
+              onDragLeave={() => setIsDraggingOver(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setIsDraggingOver(false);
+                if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                  const file = e.dataTransfer.files[0];
+                  setUploadedFileName(file.name);
+                  setNewTitle(file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ") + " - Lab Diagnostic Study");
+                }
+              }}
+              className={`border-2 border-dashed rounded-xl p-4 text-center transition cursor-pointer ${
+                isDraggingOver ? 'border-sage-600 bg-sage-50/80' : 'border-alabaster-300 bg-alabaster-50/50 hover:bg-alabaster-100/50'
+              }`}
+            >
+              <input
+                type="file"
+                id="file-upload"
+                className="hidden"
+                accept=".pdf,.png,.jpg,.jpeg,.dcm"
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    const file = e.target.files[0];
+                    setUploadedFileName(file.name);
+                    setNewTitle(file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ") + " - Lab Diagnostic Study");
+                  }
+                }}
+              />
+              <label htmlFor="file-upload" className="cursor-pointer block space-y-1">
+                <Upload className="h-5 w-5 text-sage-700 mx-auto" />
+                <div className="text-xs font-semibold text-clinical-text">
+                  {uploadedFileName ? (
+                    <span className="text-sage-800 font-bold flex items-center justify-center gap-1">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-sage-700" /> Attached: {uploadedFileName}
+                    </span>
+                  ) : (
+                    "Drop medical PDF, lab report, or scan here, or Browse File"
+                  )}
+                </div>
+                <p className="text-[10px] text-clinical-muted">
+                  Supports PDF, DICOM, PNG, JPG · Automatically encrypted client-side with native AES-256-GCM
+                </p>
+              </label>
+            </div>
+
+            {/* 2. Quick-Fill from Clinical Presets */}
+            <div className="space-y-1.5">
+              <span className="text-[10px] font-semibold text-clinical-muted uppercase tracking-wider block">
+                Or 1-Click Fill from Clinical Presets:
+              </span>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {MEDICAL_STUDY_PRESETS.map((preset) => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedPresetId(preset.id);
+                      setNewTitle(preset.title);
+                      setNewCategory(preset.category);
+                      setNewHospital(preset.hospital);
+                      setNewDoctor(preset.doctorName);
+                      setNewDoctorAddr(preset.doctorAddress);
+                      setDiagnosisCode(preset.diagnosisCode);
+                      setDiagnosisDesc(preset.diagnosisDesc);
+                      setPrescriptions(preset.prescriptions);
+                      setClinicalNotes(preset.clinicalNotes);
+                    }}
+                    className={`px-2.5 py-1.5 rounded-lg border text-[11px] font-medium text-left truncate transition cursor-pointer ${
+                      selectedPresetId === preset.id
+                        ? 'bg-sage-100 text-sage-900 border-sage-300 font-semibold'
+                        : 'bg-alabaster-100 hover:bg-sage-50 text-clinical-text border-alabaster-300'
+                    }`}
+                    title={preset.title}
+                  >
+                    {preset.id === 'preset-mri' && '🧠 Cranial MRI'}
+                    {preset.id === 'preset-cardio' && '❤️ Holter ECG'}
+                    {preset.id === 'preset-lab' && '🧪 Lipid Panel'}
+                    {preset.id === 'preset-endo' && '🔬 Endoscopy'}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <form onSubmit={handleCreateNewRecord} className="space-y-3 text-xs">
@@ -736,31 +858,45 @@ CLINICAL NOTES: ${clinicalNotes}`;
                 </div>
               </div>
 
+              {/* Attending Physician Picker (No raw address needed) */}
               <div>
                 <label className="block font-medium text-clinical-text mb-1">
-                  Physician Name & Address
+                  Attending Physician (Care Team)
                 </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    type="text"
-                    required
-                    value={newDoctor}
-                    onChange={(e) => setNewDoctor(e.target.value)}
-                    placeholder="Doctor Name"
-                    className="w-full bg-alabaster-50 border border-alabaster-300 rounded-xl px-3 py-2 text-xs text-clinical-text focus:outline-none focus:border-sage-600 focus:bg-white"
-                  />
-                  <input
-                    type="text"
-                    required
-                    value={newDoctorAddr}
-                    onChange={(e) => setNewDoctorAddr(e.target.value)}
-                    placeholder="0x..."
-                    className="w-full bg-alabaster-50 border border-alabaster-300 rounded-xl px-3 py-2 text-xs font-mono text-clinical-text focus:outline-none focus:border-sage-600 focus:bg-white"
-                  />
-                </div>
+                <select
+                  value={newDoctor}
+                  onChange={(e) => {
+                    const doc = CLINICIAN_DIRECTORY.find(d => d.name === e.target.value);
+                    if (doc) {
+                      setNewDoctor(doc.name);
+                      setNewDoctorAddr(doc.walletAddress);
+                    } else {
+                      setNewDoctor(e.target.value);
+                    }
+                  }}
+                  className="w-full bg-alabaster-50 border border-alabaster-300 rounded-xl px-3 py-2 text-xs text-clinical-text focus:outline-none focus:border-sage-600 focus:bg-white"
+                >
+                  {CLINICIAN_DIRECTORY.map((d) => (
+                    <option key={d.id} value={d.name}>
+                      {d.name} — {d.specialty} ({d.hospital.split(' ')[0]})
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block font-medium text-clinical-text mb-1">
+                    Diagnosis / Condition
+                  </label>
+                  <input
+                    type="text"
+                    value={diagnosisDesc}
+                    onChange={(e) => setDiagnosisDesc(e.target.value)}
+                    placeholder="e.g. Migraine with aura"
+                    className="w-full bg-alabaster-50 border border-alabaster-300 rounded-xl px-3 py-1.5 text-xs text-clinical-text focus:border-sage-600 focus:bg-white"
+                  />
+                </div>
                 <div>
                   <label className="block font-medium text-clinical-text mb-1">
                     ICD-10 Code
@@ -770,17 +906,6 @@ CLINICAL NOTES: ${clinicalNotes}`;
                     value={diagnosisCode}
                     onChange={(e) => setDiagnosisCode(e.target.value)}
                     className="w-full bg-alabaster-50 border border-alabaster-300 rounded-xl px-3 py-1.5 text-xs font-mono text-clinical-text focus:border-sage-600 focus:bg-white"
-                  />
-                </div>
-                <div>
-                  <label className="block font-medium text-clinical-text mb-1">
-                    Diagnosis Name
-                  </label>
-                  <input
-                    type="text"
-                    value={diagnosisDesc}
-                    onChange={(e) => setDiagnosisDesc(e.target.value)}
-                    className="w-full bg-alabaster-50 border border-alabaster-300 rounded-xl px-3 py-1.5 text-xs text-clinical-text focus:border-sage-600 focus:bg-white"
                   />
                 </div>
               </div>
@@ -811,14 +936,14 @@ CLINICAL NOTES: ${clinicalNotes}`;
               </div>
 
               <div className="p-3 bg-sage-50 border border-sage-200 rounded-xl text-[11px] text-clinical-muted space-y-1">
-                <span className="font-semibold text-sage-800 block flex items-center gap-1 font-sans">
-                  <Lock className="h-3 w-3" /> Client-Side Cryptographic Guarantee:
+                <span className="font-semibold text-sage-800 block flex items-center gap-1.5 font-sans">
+                  <Lock className="h-3.5 w-3.5 text-sage-700" /> End-to-End Client Privacy Guarantee:
                 </span>
                 <p>
-                  1. Encrypted using native Web Crypto <code>AES-256-GCM</code> with unique random IV.
+                  1. Your clinical notes and files are encrypted in your browser using AES-256-GCM before transmission.
                 </p>
                 <p>
-                  2. Only the resulting SHA-256 hash commitment is anchored to <code className="text-sage-800 font-bold">HealthAccessRegistry.sol</code>.
+                  2. Only an immutable cryptographic SHA-256 verification commitment is anchored to the registry. Your raw medical diagnosis is never publicly readable.
                 </p>
               </div>
 
@@ -826,15 +951,16 @@ CLINICAL NOTES: ${clinicalNotes}`;
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 rounded-xl text-xs text-clinical-muted hover:text-clinical-text hover:bg-alabaster-100 transition"
+                  className="px-4 py-2 rounded-xl text-xs text-clinical-muted hover:text-clinical-text hover:bg-alabaster-100 transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-sage-700 hover:bg-sage-600 text-white shadow-sm transition"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-sage-700 hover:bg-sage-600 text-white shadow-sm transition flex items-center gap-1.5 cursor-pointer"
                 >
-                  Encrypt & Anchor On-Chain
+                  <Lock className="h-3.5 w-3.5" />
+                  <span>Secure & Save Record</span>
                 </button>
               </div>
             </form>
@@ -842,50 +968,63 @@ CLINICAL NOTES: ${clinicalNotes}`;
         </div>
       )}
 
-      {/* Grant Access Modal */}
+      {/* Grant Care Team Access Modal (Directory-Based, No Raw Hex Addresses) */}
       {showGrantModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-alabaster-300 rounded-2xl max-w-md w-full p-6 space-y-5 shadow-2xl">
+          <div className="bg-white border border-alabaster-300 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between border-b border-alabaster-300 pb-3">
-              <h3 className="text-base font-serif font-bold text-clinical-text flex items-center gap-2">
+              <div className="flex items-center space-x-2">
                 <UserPlus className="h-4 w-4 text-sage-700" />
-                Delegate Care Team Access (Role-Based On-Chain)
-              </h3>
+                <h3 className="text-base font-serif font-bold text-clinical-text">
+                  Authorize Care Team Access (Role-Based On-Chain)
+                </h3>
+              </div>
               <button
                 onClick={() => setShowGrantModal(false)}
-                className="text-clinical-muted hover:text-clinical-text"
+                className="text-clinical-muted hover:text-clinical-text cursor-pointer"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmitGrant} className="space-y-4">
+            <form onSubmit={handleSubmitGrant} className="space-y-4 text-xs">
+              {/* Doctor Directory Selector */}
               <div>
-                <label className="block text-xs font-medium text-clinical-text mb-1">
-                  Doctor / Clinician Name
+                <label className="block text-xs font-semibold text-clinical-text mb-2">
+                  Select Doctor from Hospital Care Team:
                 </label>
-                <input
-                  type="text"
-                  required
-                  value={newDoctorName}
-                  onChange={(e) => setNewDoctorName(e.target.value)}
-                  placeholder="e.g. Dr. Sarah Lin, MD"
-                  className="w-full bg-alabaster-50 border border-alabaster-300 rounded-xl px-3 py-2 text-xs text-clinical-text focus:outline-none focus:border-sage-600 focus:bg-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-clinical-text mb-1">
-                  Clinician Ethereum Address
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={newDoctorAddress}
-                  onChange={(e) => setNewDoctorAddress(e.target.value)}
-                  placeholder="0x..."
-                  className="w-full bg-alabaster-50 border border-alabaster-300 rounded-xl px-3 py-2 text-xs font-mono text-clinical-text focus:outline-none focus:border-sage-600 focus:bg-white"
-                />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {CLINICIAN_DIRECTORY.map((doc) => {
+                    const isSelected = newDoctorName === doc.name;
+                    return (
+                      <button
+                        key={doc.id}
+                        type="button"
+                        onClick={() => {
+                          setNewDoctorName(doc.name);
+                          setNewDoctorAddress(doc.walletAddress);
+                          setNewSpecialty(doc.specialty);
+                        }}
+                        className={`text-left p-2.5 rounded-xl border transition flex items-center justify-between cursor-pointer ${
+                          isSelected
+                            ? 'bg-sage-50/90 border-sage-600 ring-2 ring-sage-600/20'
+                            : 'bg-alabaster-50/70 border-alabaster-300 hover:border-sage-400 hover:bg-white'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-2.5">
+                          <div className="h-8 w-8 rounded-lg bg-sage-200 text-sage-800 text-xs font-bold flex items-center justify-center shrink-0">
+                            {doc.avatar}
+                          </div>
+                          <div>
+                            <div className="font-serif font-bold text-xs text-clinical-text">{doc.name}</div>
+                            <div className="text-[10px] text-clinical-muted truncate">{doc.specialty} · {doc.hospital.split(' ')[0]}</div>
+                          </div>
+                        </div>
+                        {isSelected && <Check className="h-4 w-4 text-sage-700 shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -904,7 +1043,7 @@ CLINICAL NOTES: ${clinicalNotes}`;
 
                 <div>
                   <label className="block text-xs font-medium text-clinical-text mb-1">
-                    Granular Role
+                    Granular Access Role
                   </label>
                   <select
                     value={newRole}
@@ -919,6 +1058,29 @@ CLINICAL NOTES: ${clinicalNotes}`;
                 </div>
               </div>
 
+              {/* Optional Wallet Override Toggle */}
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setShowManualDoctorOverride(!showManualDoctorOverride)}
+                  className="text-[11px] text-sage-700 hover:text-sage-900 underline cursor-pointer"
+                >
+                  {showManualDoctorOverride ? "Hide Custom Wallet Address Override" : "Override Doctor Wallet Address (Advanced)"}
+                </button>
+                {showManualDoctorOverride && (
+                  <div className="mt-2">
+                    <input
+                      type="text"
+                      required
+                      value={newDoctorAddress}
+                      onChange={(e) => setNewDoctorAddress(e.target.value)}
+                      placeholder="0x..."
+                      className="w-full bg-alabaster-50 border border-alabaster-300 rounded-xl px-3 py-2 text-xs font-mono text-clinical-text focus:outline-none focus:border-sage-600 focus:bg-white"
+                    />
+                  </div>
+                )}
+              </div>
+
               <div className="p-3 bg-sage-50 border border-sage-200 rounded-xl text-[11px] text-clinical-muted flex items-start gap-2">
                 <Lock className="h-4 w-4 text-sage-700 shrink-0 mt-0.5" />
                 <span>
@@ -930,13 +1092,13 @@ CLINICAL NOTES: ${clinicalNotes}`;
                 <button
                   type="button"
                   onClick={() => setShowGrantModal(false)}
-                  className="px-4 py-2 rounded-xl text-xs text-clinical-muted hover:text-clinical-text hover:bg-alabaster-100 transition"
+                  className="px-4 py-2 rounded-xl text-xs text-clinical-muted hover:text-clinical-text hover:bg-alabaster-100 transition cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-sage-700 hover:bg-sage-600 text-white shadow-sm transition"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-sage-700 hover:bg-sage-600 text-white shadow-sm transition cursor-pointer"
                 >
                   Confirm & Sign On-Chain
                 </button>
