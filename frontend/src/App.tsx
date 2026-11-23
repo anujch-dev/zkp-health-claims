@@ -3,9 +3,10 @@ import { Navbar } from './components/Navbar';
 import { RoleSwitcher } from './components/RoleSwitcher';
 import { WorkflowStepper } from './components/WorkflowStepper';
 import { ToastContainer } from './components/ToastContainer';
-import { PatientView } from './views/PatientView';
-import { HospitalView } from './views/HospitalView';
-import { InsurerView } from './views/InsurerView';
+import { PortalLandingView } from './views/PortalLandingView';
+import { PatientPortalView, PatientTab } from './views/PatientPortalView';
+import { HospitalPortalView, HospitalTab } from './views/HospitalPortalView';
+import { InsurerPortalView, InsurerTab } from './views/InsurerPortalView';
 import { GuidedDemoView } from './views/GuidedDemoView';
 import { ArchitectureView } from './views/ArchitectureView';
 import { UserRole, HealthRecord, InsurancePolicy, ClaimSubmission, AuditEvent, ClaimPrivateInputs, TerminologyMode, ToastMessage, PatientProfile } from './types';
@@ -26,8 +27,44 @@ import { generateHealthClaimProof, generateTamperedProof } from './lib/zkp';
 import { CERTIFIED_GROTH16_CIRCUIT } from './fixtures/groth16Artifacts';
 import { api } from './lib/api';
 
+const parseInitialRoute = (): { role: UserRole; subPath?: string } => {
+  if (typeof window === 'undefined') return { role: 'landing' };
+  const path = window.location.pathname.toLowerCase();
+
+  if (path.startsWith('/patient')) {
+    const parts = path.split('/').filter(Boolean);
+    return { role: 'patient', subPath: parts[1] || 'dashboard' };
+  }
+  if (path.startsWith('/hospital')) {
+    const parts = path.split('/').filter(Boolean);
+    return { role: 'hospital', subPath: parts[1] || 'dashboard' };
+  }
+  if (path.startsWith('/insurer')) {
+    const parts = path.split('/').filter(Boolean);
+    return { role: 'insurer', subPath: parts[1] || 'dashboard' };
+  }
+  if (path.startsWith('/demo')) {
+    return { role: 'demo' };
+  }
+  if (path.startsWith('/architecture')) {
+    return { role: 'architecture' };
+  }
+  return { role: 'landing' };
+};
+
 export function App() {
-  const [currentRole, setCurrentRole] = useState<UserRole>('demo');
+  const initialRoute = parseInitialRoute();
+  const [currentRole, setCurrentRole] = useState<UserRole>(initialRoute.role);
+  const [patientTab, setPatientTab] = useState<PatientTab>(
+    (initialRoute.role === 'patient' && (initialRoute.subPath as PatientTab)) || 'dashboard'
+  );
+  const [hospitalTab, setHospitalTab] = useState<HospitalTab>(
+    (initialRoute.role === 'hospital' && (initialRoute.subPath as HospitalTab)) || 'dashboard'
+  );
+  const [insurerTab, setInsurerTab] = useState<InsurerTab>(
+    (initialRoute.role === 'insurer' && (initialRoute.subPath as InsurerTab)) || 'dashboard'
+  );
+
   const [terminologyMode, setTerminologyMode] = useState<TerminologyMode>('plain');
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [records, setRecords] = useState<HealthRecord[]>(INITIAL_HEALTH_RECORDS);
@@ -46,6 +83,49 @@ export function App() {
   ]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [walletBalance] = useState("24.50");
+
+  const navigateTo = (role: UserRole, subPath?: string) => {
+    setCurrentRole(role);
+    let targetUrl = '/';
+
+    if (role === 'landing') {
+      targetUrl = '/';
+    } else if (role === 'patient') {
+      const tab = (subPath as PatientTab) || patientTab || 'dashboard';
+      setPatientTab(tab);
+      targetUrl = `/patient/${tab}`;
+    } else if (role === 'hospital') {
+      const tab = (subPath as HospitalTab) || hospitalTab || 'dashboard';
+      setHospitalTab(tab);
+      targetUrl = `/hospital/${tab}`;
+    } else if (role === 'insurer') {
+      const tab = (subPath as InsurerTab) || insurerTab || 'dashboard';
+      setInsurerTab(tab);
+      targetUrl = `/insurer/${tab}`;
+    } else if (role === 'demo') {
+      targetUrl = '/demo';
+    } else if (role === 'architecture') {
+      targetUrl = '/architecture';
+    }
+
+    if (window.location.pathname !== targetUrl) {
+      window.history.pushState({ role, subPath }, '', targetUrl);
+    }
+  };
+
+  // Sync browser back/forward buttons with application state
+  useEffect(() => {
+    const handlePopState = () => {
+      const route = parseInitialRoute();
+      setCurrentRole(route.role);
+      if (route.role === 'patient' && route.subPath) setPatientTab(route.subPath as PatientTab);
+      if (route.role === 'hospital' && route.subPath) setHospitalTab(route.subPath as HospitalTab);
+      if (route.role === 'insurer' && route.subPath) setInsurerTab(route.subPath as InsurerTab);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   const addToast = (type: 'success' | 'error' | 'warning' | 'info', title: string, message: string) => {
     const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
@@ -83,7 +163,6 @@ export function App() {
 
       if (isMounted) {
         setIsBackendOnline(false);
-        // Retry every 4 seconds until connected
         retryTimer = setTimeout(checkHealth, 4000);
       }
     };
@@ -105,7 +184,6 @@ export function App() {
   };
 
   const handleGrantAccess = (recordId: string, doctorAddress: string, doctorName: string, specialty: string, role: string = "Specialist") => {
-    // Sync with backend service in background
     api.grantAccess({
       patientAddress: PATIENT_ADDRESS,
       doctorAddress,
@@ -147,7 +225,6 @@ export function App() {
   };
 
   const handleRevokeAccess = (recordId: string, doctorAddress: string) => {
-    // Sync with backend service in background
     api.revokeAccess({
       patientAddress: PATIENT_ADDRESS,
       doctorAddress,
@@ -181,7 +258,6 @@ export function App() {
   };
 
   const handleAddRecord = (newRecord: HealthRecord) => {
-    // Register commitment on backend IPFS and contract relayer
     api.uploadRecord({
       patientAddress: PATIENT_ADDRESS,
       title: newRecord.title,
@@ -207,7 +283,6 @@ export function App() {
   };
 
   const handleLogRecordView = (recordId: string, viewerAddress: string) => {
-    // Record view audit event on backend
     api.viewRecord(recordId, viewerAddress).catch(() => {});
 
     const audit: AuditEvent = {
@@ -225,7 +300,6 @@ export function App() {
   };
 
   const handleBreakGlassAccess = (recordId: string, reason: string, responderName: string, responderAddr: string) => {
-    // Permanently record break-glass emergency override on backend
     api.breakGlassEmergency({
       patientAddress: PATIENT_ADDRESS,
       recordId,
@@ -266,7 +340,6 @@ export function App() {
 
   // Hospital Actions
   const handleClaimSubmitted = (submission: ClaimSubmission) => {
-    // Relay claim submission and check nullifiers on backend
     api.submitClaim({
       proof: submission.proof,
       publicInputs: submission.publicInputs,
@@ -638,23 +711,23 @@ export function App() {
       <Navbar
         currentRole={currentRole}
         walletBalance={walletBalance}
-        onSelectRole={setCurrentRole}
+        onSelectRole={navigateTo}
         terminologyMode={terminologyMode}
         onToggleTerminology={() => setTerminologyMode(m => m === 'plain' ? 'technical' : 'plain')}
         isBackendOnline={isBackendOnline}
       />
 
-      {/* Role Switcher & Workflow Stepper for deep portal workflows */}
-      {currentRole !== 'demo' && (
+      {/* Role Switcher & Workflow Stepper shown during Demo Mode or Evaluator tests */}
+      {currentRole === 'demo' && (
         <>
           <RoleSwitcher
             currentRole={currentRole}
-            onSelectRole={setCurrentRole}
+            onSelectRole={navigateTo}
             pendingClaimsCount={pendingClaimsCount}
           />
           <WorkflowStepper
             currentRole={currentRole}
-            onSelectRole={setCurrentRole}
+            onSelectRole={navigateTo}
             hasRecord={records.length > 0}
             hasProofOrClaim={claims.length > 0}
             hasSettled={claims.some(c => c.status === 'PAYOUT_SETTLED')}
@@ -664,24 +737,19 @@ export function App() {
       )}
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        {currentRole === 'demo' && (
-          <GuidedDemoView
-            onRunValidClaim={handleRunValidClaim}
-            onTestReplayAttack={handleTestReplayAttack}
-            onTestExpiredPolicy={handleTestExpiredPolicy}
-            onTestLimitExceeded={handleTestLimitExceeded}
-            onTestTamperedProof={handleTestTamperedProof}
-            onTestUnaccreditedHospital={handleTestUnaccreditedHospital}
-            onResetDemo={handleResetDemo}
-            onSelectRole={setCurrentRole}
-            isProcessing={isProcessing}
-            demoLogs={demoLogs}
-            terminologyMode={terminologyMode}
+        {/* 1. Common Landing Page */}
+        {currentRole === 'landing' && (
+          <PortalLandingView
+            onSelectPortal={(portal) => navigateTo(portal, 'dashboard')}
+            policy={policy}
+            claims={claims}
+            records={records}
           />
         )}
 
+        {/* 2. Patient Portal with Sovereign Health Vault */}
         {currentRole === 'patient' && (
-          <PatientView
+          <PatientPortalView
             records={records}
             policy={policy}
             patientProfile={patientProfile}
@@ -693,12 +761,16 @@ export function App() {
             onLogRecordView={handleLogRecordView}
             onBreakGlassAccess={handleBreakGlassAccess}
             terminologyMode={terminologyMode}
-            onSelectRole={setCurrentRole}
+            onSelectRole={navigateTo}
+            onExitPortal={() => navigateTo('landing')}
+            activeTab={patientTab}
+            onTabChange={(tab) => navigateTo('patient', tab)}
           />
         )}
 
+        {/* 3. Hospital Portal with Groth16 Claim Prover */}
         {currentRole === 'hospital' && (
-          <HospitalView
+          <HospitalPortalView
             policy={policy}
             patientProfile={patientProfile}
             onClaimSubmitted={handleClaimSubmitted}
@@ -707,12 +779,18 @@ export function App() {
             onTestLimitExceeded={handleTestLimitExceeded}
             isProcessing={isProcessing}
             terminologyMode={terminologyMode}
-            onSelectRole={setCurrentRole}
+            onSelectRole={navigateTo}
+            claims={claims}
+            records={records}
+            onExitPortal={() => navigateTo('landing')}
+            activeTab={hospitalTab}
+            onTabChange={(tab) => navigateTo('hospital', tab)}
           />
         )}
 
+        {/* 4. Insurance Portal with Zero-Knowledge Verification & Settlement */}
         {currentRole === 'insurer' && (
-          <InsurerView
+          <InsurerPortalView
             claims={claims}
             policy={policy}
             onSettleClaim={handleSettleClaim}
@@ -720,10 +798,32 @@ export function App() {
             onTestReplayAttack={handleTestReplayAttack}
             isProcessing={isProcessing}
             terminologyMode={terminologyMode}
-            onSelectRole={setCurrentRole}
+            onSelectRole={navigateTo}
+            auditLogs={auditLogs}
+            onExitPortal={() => navigateTo('landing')}
+            activeTab={insurerTab}
+            onTabChange={(tab) => navigateTo('insurer', tab)}
           />
         )}
 
+        {/* 5. Interactive Demo Mode for Judges and Evaluators */}
+        {currentRole === 'demo' && (
+          <GuidedDemoView
+            onRunValidClaim={handleRunValidClaim}
+            onTestReplayAttack={handleTestReplayAttack}
+            onTestExpiredPolicy={handleTestExpiredPolicy}
+            onTestLimitExceeded={handleTestLimitExceeded}
+            onTestTamperedProof={handleTestTamperedProof}
+            onTestUnaccreditedHospital={handleTestUnaccreditedHospital}
+            onResetDemo={handleResetDemo}
+            onSelectRole={navigateTo}
+            isProcessing={isProcessing}
+            demoLogs={demoLogs}
+            terminologyMode={terminologyMode}
+          />
+        )}
+
+        {/* 6. System Architecture & Cryptographic Primitives View */}
         {currentRole === 'architecture' && (
           <ArchitectureView auditLogs={auditLogs} />
         )}
@@ -738,10 +838,11 @@ export function App() {
             Privacy-Preserving Healthcare Claims & Instant Settlement Powered by Zero-Knowledge Proofs.
           </p>
           <div className="flex flex-wrap justify-center gap-6 text-[11px] uppercase tracking-wider text-[#292D29] pt-2">
-            <button onClick={() => setCurrentRole('demo')} className="hover:text-[#294638] transition cursor-pointer">Home</button>
-            <button onClick={() => setCurrentRole('patient')} className="hover:text-[#294638] transition cursor-pointer">Patient Records</button>
-            <button onClick={() => setCurrentRole('hospital')} className="hover:text-[#294638] transition cursor-pointer">Hospital Claims</button>
-            <button onClick={() => setCurrentRole('insurer')} className="hover:text-[#294638] transition cursor-pointer">Insurance Settlement</button>
+            <button onClick={() => navigateTo('landing')} className="hover:text-[#294638] transition cursor-pointer">Portal Selection</button>
+            <button onClick={() => navigateTo('patient', 'dashboard')} className="hover:text-emerald-700 transition cursor-pointer">Patient Portal</button>
+            <button onClick={() => navigateTo('hospital', 'dashboard')} className="hover:text-blue-700 transition cursor-pointer">Hospital Portal</button>
+            <button onClick={() => navigateTo('insurer', 'dashboard')} className="hover:text-purple-700 transition cursor-pointer">Insurance Portal</button>
+            <button onClick={() => navigateTo('demo')} className="hover:text-[#294638] transition cursor-pointer">Interactive Evaluation</button>
           </div>
         </div>
       </footer>
