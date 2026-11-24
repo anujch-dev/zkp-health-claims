@@ -185,7 +185,10 @@ export const api = {
       success: boolean;
       proof: any;
       publicInputs: any;
-      generationTimeMs: number;
+      publicSignals: string[];
+      solidityCalldata: any;
+      durationMs: number;
+      generationTimeMs?: number;
     }>('/zkp/generate-proof', {
       method: 'POST',
       body: JSON.stringify({ privateInputs })
