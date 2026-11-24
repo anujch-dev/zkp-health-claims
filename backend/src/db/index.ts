@@ -1,4 +1,6 @@
 import pg from 'pg';
+import fs from 'fs';
+import path from 'path';
 import { CONFIG } from '../config/index.js';
 import {
   ClaimRecord,
@@ -43,8 +45,9 @@ export interface PolicyEntity {
 export class DatabaseService {
   private pool: pg.Pool | null = null;
   public isConnected: boolean = false;
+  private dbDir: string;
 
-  // In-memory fallback stores
+  // In-memory fallback stores (backed by local disk JSON)
   private memPatients = new Map<string, PatientEntity>();
   private memPolicies = new Map<string, PolicyEntity>();
   private memRecords = new Map<string, EncryptedMedicalRecord>();
@@ -54,8 +57,37 @@ export class DatabaseService {
   private memBreakGlass: BreakGlassLog[] = [];
 
   constructor() {
+    this.dbDir = path.join(CONFIG.PATHS.storageDir, 'db');
+    if (!fs.existsSync(this.dbDir)) {
+      try {
+        fs.mkdirSync(this.dbDir, { recursive: true });
+      } catch {}
+    }
     this.seedMemoryStore();
     this.setupPool();
+  }
+
+  private saveFile(filename: string, data: any) {
+    try {
+      if (!fs.existsSync(this.dbDir)) {
+        fs.mkdirSync(this.dbDir, { recursive: true });
+      }
+      fs.writeFileSync(path.join(this.dbDir, filename), JSON.stringify(data, null, 2), 'utf8');
+    } catch (e: any) {
+      console.warn('Failed to save db file:', filename, e.message);
+    }
+  }
+
+  private loadFile<T>(filename: string): T | null {
+    try {
+      const p = path.join(this.dbDir, filename);
+      if (fs.existsSync(p)) {
+        return JSON.parse(fs.readFileSync(p, 'utf8'));
+      }
+    } catch (e: any) {
+      console.warn('Failed to load db file:', filename, e.message);
+    }
+    return null;
   }
 
   private setupPool() {
@@ -329,7 +361,48 @@ export class DatabaseService {
   }
 
   private seedMemoryStore() {
-    // Seed initial patients
+    // 1. Try to load saved data from disk if available
+    const savedPatients = this.loadFile<PatientEntity[]>('patients.json');
+    if (savedPatients && savedPatients.length > 0) {
+      savedPatients.forEach((p) => this.memPatients.set(p.patient_id, p));
+    }
+
+    const savedPolicies = this.loadFile<PolicyEntity[]>('policies.json');
+    if (savedPolicies && savedPolicies.length > 0) {
+      savedPolicies.forEach((pol) => this.memPolicies.set(pol.id, pol));
+    }
+
+    const savedRecords = this.loadFile<EncryptedMedicalRecord[]>('records.json');
+    if (savedRecords && savedRecords.length > 0) {
+      savedRecords.forEach((r) => this.memRecords.set(r.id, r));
+    }
+
+    const savedClaims = this.loadFile<ClaimRecord[]>('claims.json');
+    if (savedClaims && savedClaims.length > 0) {
+      savedClaims.forEach((c) => this.memClaims.set(c.id, c));
+    }
+
+    const savedPerms = this.loadFile<Record<string, AccessPermission[]>>('permissions.json');
+    if (savedPerms) {
+      Object.entries(savedPerms).forEach(([k, v]) => this.memPermissions.set(k, v));
+    }
+
+    const savedAudit = this.loadFile<any[]>('audit.json');
+    if (savedAudit) {
+      savedAudit.forEach((a) => this.memAudit.set(a.id, a));
+    }
+
+    const savedBreakGlass = this.loadFile<BreakGlassLog[]>('breakglass.json');
+    if (savedBreakGlass) {
+      this.memBreakGlass = savedBreakGlass;
+    }
+
+    if (this.memPatients.size > 0 && this.memClaims.size > 0) {
+      console.log('📂 [DB] Loaded persistent data store from local disk storage.');
+      return;
+    }
+
+    // Default Seed initial patients
     const patients: PatientEntity[] = [
       {
         patient_id: 'PT-766110',
@@ -563,6 +636,7 @@ export class DatabaseService {
       }
     }
     this.memPatients.set(patient.patient_id, patient);
+    this.saveFile('patients.json', Array.from(this.memPatients.values()));
     return patient;
   }
 
@@ -599,6 +673,7 @@ export class DatabaseService {
       }
     }
     this.memRecords.set(rec.id, rec);
+    this.saveFile('records.json', Array.from(this.memRecords.values()));
     return rec;
   }
 
@@ -690,6 +765,7 @@ export class DatabaseService {
     const list = this.memPermissions.get(key) || [];
     list.push(perm);
     this.memPermissions.set(key, list);
+    this.saveFile('permissions.json', Object.fromEntries(this.memPermissions.entries()));
   }
 
   public async revokePermission(recordId: string, granteeAddress: string): Promise<void> {
@@ -713,6 +789,7 @@ export class DatabaseService {
         });
       }
     }
+    this.saveFile('permissions.json', Object.fromEntries(this.memPermissions.entries()));
   }
 
   public async getPermissionsForPatient(patientAddress: string): Promise<AccessPermission[]> {
@@ -781,6 +858,7 @@ export class DatabaseService {
       }
     }
     this.memClaims.set(claim.id, claim);
+    this.saveFile('claims.json', Array.from(this.memClaims.values()));
     return claim;
   }
 
@@ -909,6 +987,7 @@ export class DatabaseService {
       }
     }
     this.memAudit.set(event.id, event);
+    this.saveFile('audit.json', Array.from(this.memAudit.values()));
   }
 
   public async getRecentAuditEvents(limit: number = 50): Promise<any[]> {
@@ -948,6 +1027,7 @@ export class DatabaseService {
       }
     }
     this.memBreakGlass.push(log);
+    this.saveFile('breakglass.json', this.memBreakGlass);
   }
 }
 
