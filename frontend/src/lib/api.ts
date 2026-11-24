@@ -25,6 +25,7 @@ export interface BackendHealth {
   version: string;
   service: string;
   port: number;
+  database?: string;
   modules: Record<string, string>;
 }
 
@@ -42,8 +43,8 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   });
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+    const errorBody = await response.json().catch(() => ({}));
+    throw new Error(errorBody.error || errorBody.message || `API request failed with status ${response.status}`);
   }
 
   return response.json();
@@ -51,7 +52,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
 export const api = {
   /**
-   * Health Check
+   * Health and service connectivity
    */
   async getHealth(): Promise<BackendHealth | null> {
     try {
@@ -62,7 +63,7 @@ export const api = {
   },
 
   /**
-   * Module 1: Auth & Roles
+   * Module 1: Cryptographic Authentication
    */
   async getAuthChallenge(address: string, role: string = 'patient') {
     return request<{ success: boolean; address: string; role: string; challenge: string; expiresAt: number }>(
@@ -71,70 +72,52 @@ export const api = {
   },
 
   async verifyAuthSignature(address: string, signature: string, challenge: string) {
-    return request<{ success: boolean; token: string; session: any }>(
-      '/auth/verify',
-      {
-        method: 'POST',
-        body: JSON.stringify({ address, signature, challenge })
-      }
-    );
+    return request<{ success: boolean; token: string; session: any }>('/auth/verify', {
+      method: 'POST',
+      body: JSON.stringify({ address, signature, challenge })
+    });
   },
 
   async demoLogin(role: string) {
-    return request<{ success: boolean; token: string; session: any; isDemo: boolean }>(
-      '/auth/demo-login',
-      {
-        method: 'POST',
-        body: JSON.stringify({ role })
-      }
-    );
+    return request<{ success: boolean; token: string; session: any; isDemo: boolean }>('/auth/demo-login', {
+      method: 'POST',
+      body: JSON.stringify({ role })
+    });
   },
 
   async getRoles() {
-    return request<{ roles: Array<{ id: string; title: string; address: string; name: string; description: string }> }>(
-      '/auth/roles'
-    );
+    return request<{ roles: Array<{ id: string; title: string; address: string; name: string; description: string }> }>('/auth/roles');
   },
 
   /**
-   * Module 2: Medical Records & IPFS
+   * Module 2: IPFS Record Storage & Encryption
    */
   async uploadRecord(payload: {
     patientAddress: string;
     title: string;
-    category?: string;
-    procedureCode?: string;
-    diagnosisCode?: string;
+    category: string;
+    content?: string;
     hospitalName?: string;
     doctorName?: string;
-    fhirBundleJson?: any;
-    content?: string;
+    procedureCode?: string;
+    diagnosisCode?: string;
   }) {
-    return request<{
-      success: boolean;
-      recordId: string;
-      ipfsCid: string;
-      commitmentHash: string;
-      onChainTxHash: string;
-      onChain: boolean;
-      encryptionKeyHex: string;
-      record: any;
-    }>('/records/upload', {
+    return request<any>('/records/upload', {
       method: 'POST',
       body: JSON.stringify(payload)
     });
   },
 
   async getPatientRecords(patientAddress: string) {
-    return request<{ success: boolean; count: number; records: any[] }>(
+    return request<{ success: boolean; patientAddress: string; count: number; records: any[] }>(
       `/records/patient/${patientAddress}`
     );
   },
 
   async viewRecord(recordId: string, viewerAddress?: string) {
-    const q = viewerAddress ? `?viewerAddress=${viewerAddress}` : '';
+    const query = viewerAddress ? `?viewerAddress=${viewerAddress}` : '';
     return request<{ success: boolean; record: any; viewLoggedOnChain: boolean; auditTxHash: string }>(
-      `/records/${recordId}${q}`
+      `/records/${recordId}${query}`
     );
   },
 
@@ -145,13 +128,10 @@ export const api = {
     role?: string;
     durationSeconds?: number;
   }) {
-    return request<{ success: boolean; permission: any; txHash: string }>(
-      '/records/grant',
-      {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      }
-    );
+    return request<{ success: boolean; permission: any; txHash: string }>('/records/grant', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
   },
 
   async revokeAccess(payload: {
@@ -159,28 +139,22 @@ export const api = {
     doctorAddress: string;
     recordId: string;
   }) {
-    return request<{ success: boolean; revoked: boolean; txHash: string }>(
-      '/records/revoke',
-      {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      }
-    );
+    return request<{ success: boolean; revoked: boolean; txHash: string }>('/records/revoke', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
   },
 
   async breakGlassEmergency(payload: {
     patientAddress: string;
     recordId: string;
-    responderAddress?: string;
+    responderAddress: string;
     reason: string;
   }) {
-    return request<{ success: boolean; breakGlassLog: any; onChainAuditTx: string; record: any }>(
-      '/records/break-glass',
-      {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      }
-    );
+    return request<any>('/records/break-glass', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
   },
 
   async generatePharmacyPass(payload: {
@@ -189,58 +163,48 @@ export const api = {
     medicationCode?: string;
     medicationName?: string;
   }) {
-    return request<{ success: boolean; pass: any; qrDataString: string }>(
-      '/records/pharmacy-pass',
-      {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      }
-    );
+    return request<any>('/records/pharmacy-pass', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
   },
 
   /**
-   * Module 3: Zero-Knowledge Proofs
+   * Module 3: Zero-Knowledge Proving (Circom BN254)
    */
   async getMerkleTree() {
-    return request<{
-      success: boolean;
-      merkleRootDecimal: string;
-      merkleRootHex: string;
-      treeDepth: number;
-      totalLeaves: number;
-      accreditedHospitals: any[];
-    }>('/zkp/merkle-tree');
+    return request<any>('/zkp/merkle-tree');
   },
 
   async getHospitalMerkleProof(hospitalId: string) {
-    return request<{ success: boolean; hospitalId: string; proof: any }>(
-      `/zkp/merkle-proof/${hospitalId}`
-    );
+    return request<any>(`/zkp/hospital-proof/${hospitalId}`);
   },
 
   async generateProof(privateInputs: any) {
     return request<{
       success: boolean;
       proof: any;
-      publicSignals: string[];
       publicInputs: any;
-      solidityCalldata: any;
-      durationMs: number;
-    }>('/zkp/prove', {
+      generationTimeMs: number;
+    }>('/zkp/generate-proof', {
       method: 'POST',
       body: JSON.stringify({ privateInputs })
     });
   },
 
   async verifyProof(proof: any, publicSignals: string[]) {
-    return request<{ success: boolean; isValid: boolean }>('/zkp/verify', {
+    return request<{
+      isValid: boolean;
+      verificationEngine: string;
+      verifiedAt: number;
+    }>('/zkp/verify-proof', {
       method: 'POST',
       body: JSON.stringify({ proof, publicSignals })
     });
   },
 
   /**
-   * Module 4: Blockchain & Claims Relayer
+   * Module 4: Claims & Relayer Settlement
    */
   async submitClaim(claimPayload: {
     proof: any;
@@ -251,17 +215,7 @@ export const api = {
     procedureName?: string;
     claimAmount?: number;
   }) {
-    return request<{
-      success: boolean;
-      claimId: string;
-      status: string;
-      onChainSettled: boolean;
-      transactionHash: string;
-      nullifier: string;
-      payoutAmount: number;
-      hospitalRecipient: string;
-      claim: any;
-    }>('/claims/submit', {
+    return request<any>('/claims/submit', {
       method: 'POST',
       body: JSON.stringify(claimPayload)
     });
@@ -303,12 +257,33 @@ export const api = {
   },
 
   async getAuditEvents(limit: number = 50) {
-    return request<{ success: boolean; totalCount: number; events: any[] }>(
+    return request<{ success: boolean; totalCount: number; events: any[]; databaseEvents?: any[] }>(
       `/audit/events?limit=${limit}`
     );
   },
 
   async getSystemStatus() {
     return request<any>('/audit/system-status');
+  },
+
+  /**
+   * Module 6: PostgreSQL Sovereign Patient Identity
+   */
+  async patientLogin(payload: { phone?: string; patientId?: string }) {
+    return request<{ success: boolean; patient: any }>('/auth/patient-login', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  },
+
+  async getRegisteredPatients() {
+    return request<{ success: boolean; count: number; patients: any[] }>('/auth/patients');
+  },
+
+  async registerPatient(patientData: any) {
+    return request<{ success: boolean; patient: any }>('/auth/register-patient', {
+      method: 'POST',
+      body: JSON.stringify(patientData)
+    });
   }
 };

@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { ethers } from 'ethers';
 import { CONFIG } from '../config/index.js';
 import { AuthChallenge, UserRole, UserSession } from '../types/index.js';
+import { db } from '../db/index.js';
 
 const router = Router();
 
@@ -251,6 +252,110 @@ router.get('/roles', (_req: Request, res: Response): void => {
       }
     ]
   });
+});
+
+/**
+ * GET /api/auth/patients
+ * Lists all registered patients from PostgreSQL
+ */
+router.get('/patients', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const patients = await db.getAllPatients();
+    res.json({
+      success: true,
+      count: patients.length,
+      patients
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to retrieve patients', details: err.message });
+  }
+});
+
+/**
+ * POST /api/auth/patient-login
+ * Fetches patient details by phone number or patient ID from PostgreSQL
+ */
+router.post('/patient-login', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { phone, patientId } = req.body;
+
+    if (!phone && !patientId) {
+      res.status(400).json({ error: 'Either phone number or patientId is required' });
+      return;
+    }
+
+    let patient = null;
+    if (patientId) {
+      patient = await db.getPatientById(patientId);
+    }
+    if (!patient && phone) {
+      patient = await db.getPatientByPhone(phone);
+    }
+
+    if (!patient) {
+      res.status(404).json({
+        success: false,
+        error: 'Patient not found. Check phone number or EHR ID.'
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      patient
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to login patient', details: err.message });
+  }
+});
+
+/**
+ * POST /api/auth/register-patient
+ * Registers or updates a patient in PostgreSQL
+ */
+router.post('/register-patient', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const {
+      patient_id,
+      name,
+      phone,
+      hospital,
+      wallet_address,
+      primary_diagnosis,
+      primary_diagnosis_code,
+      primary_procedure,
+      primary_procedure_code,
+      avatar_initial
+    } = req.body;
+
+    if (!name || !phone) {
+      res.status(400).json({ error: 'Patient name and phone are required' });
+      return;
+    }
+
+    const patientId = patient_id || 'PT-' + Math.floor(100000 + Math.random() * 900000);
+    const initial = avatar_initial || name.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase();
+
+    const saved = await db.upsertPatient({
+      patient_id: patientId,
+      name,
+      phone,
+      hospital: hospital || 'Mayo Clinic Healthcare System',
+      wallet_address: wallet_address || CONFIG.DEMO_ROLES.PATIENT,
+      primary_diagnosis: primary_diagnosis || 'Unspecified Clinical Follow-up',
+      primary_diagnosis_code: primary_diagnosis_code || 'Z00.00',
+      primary_procedure: primary_procedure || 'Level 3 Office Visit',
+      primary_procedure_code: primary_procedure_code || 'CPT-99213',
+      avatar_initial: initial
+    });
+
+    res.json({
+      success: true,
+      patient: saved
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to register patient', details: err.message });
+  }
 });
 
 export default router;

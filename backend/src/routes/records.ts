@@ -5,84 +5,10 @@ import { ipfsService } from '../services/ipfsService.js';
 import { contractRelayer } from '../services/contractRelayer.js';
 import { EncryptedMedicalRecord, AccessPermission, BreakGlassLog, PharmacyQRPayload } from '../types/index.js';
 import { CONFIG } from '../config/index.js';
+import { db } from '../db/index.js';
 
 const router = Router();
 const upload = multer({ limits: { fileSize: 10 * 1024 * 1024 } }); // 10MB limit
-
-// In-memory records database
-const recordsDb = new Map<string, EncryptedMedicalRecord>();
-// patientAddress => recordId[]
-const patientRecordsMap = new Map<string, string[]>();
-// patientAddress_recordId => AccessPermission[]
-const permissionsMap = new Map<string, AccessPermission[]>();
-// break-glass logs
-const breakGlassLogs: BreakGlassLog[] = [];
-
-// Seed demo records for Hackasol presentation
-function seedDemoRecords() {
-  const patient = CONFIG.DEMO_ROLES.PATIENT.toLowerCase();
-  
-  const rec1Id = '0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b';
-  const rec1Content = JSON.stringify({
-    resourceType: 'Bundle',
-    type: 'document',
-    entry: [
-      {
-        resource: {
-          resourceType: 'DiagnosticReport',
-          status: 'final',
-          code: { text: 'Laparoscopic Appendectomy Operative Report' },
-          subject: { reference: 'Patient/Sarah-Chen-8801' },
-          effectiveDateTime: '2026-11-20T14:30:00Z',
-          performer: [{ display: 'Dr. Marcus Vance, Mayo Clinic' }],
-          conclusionCode: [{ coding: [{ system: 'http://hl7.org/fhir/sid/icd-10', code: 'K35.80', display: 'Unspecified acute appendicitis' }] }]
-        }
-      }
-    ]
-  });
-  const enc1 = ipfsService.encryptAESGCM(rec1Content, '0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef');
-  const pin1 = ipfsService.pin(Buffer.from(JSON.stringify(enc1)), 'appendectomy_report.enc');
-
-  const record1: EncryptedMedicalRecord = {
-    id: rec1Id,
-    patientAddress: CONFIG.DEMO_ROLES.PATIENT,
-    title: 'Laparoscopic Appendectomy Operative Report',
-    category: 'Diagnostic',
-    ipfsCid: pin1.cid,
-    commitmentHash: pin1.sha256Commitment,
-    encryptedPayload: JSON.stringify(enc1),
-    metadata: {
-      hospitalName: 'Mayo Clinic Healthcare System',
-      doctorName: 'Dr. Marcus Vance',
-      procedureCode: '102',
-      diagnosisCode: '90210',
-      timestamp: 1732320000,
-      mimeType: 'application/fhir+json'
-    },
-    anchoredOnChain: true,
-    onChainTxHash: '0x3f5c7d8e9a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d',
-    createdAt: Date.now() - 3 * 86400000
-  };
-
-  recordsDb.set(rec1Id, record1);
-  patientRecordsMap.set(patient, [rec1Id]);
-
-  // Seed sample permission
-  permissionsMap.set(`${patient}_${rec1Id}`, [
-    {
-      recordId: rec1Id,
-      granteeAddress: CONFIG.DEMO_ROLES.HOSPITAL,
-      granteeName: 'Dr. Marcus Vance (Mayo Clinic)',
-      role: 'Doctor',
-      grantedAt: Date.now() - 2 * 86400000,
-      expiresAt: Date.now() + 5 * 86400000,
-      isActive: true,
-      txHash: '0x88f231e45c7b8a9b0c1d2e3f4a5b6c7d8e9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c'
-    }
-  ]);
-}
-
-seedDemoRecords();
 
 /**
  * POST /api/records/upload
@@ -183,12 +109,19 @@ router.post('/upload', upload.single('file'), async (req: Request, res: Response
       createdAt: Date.now()
     };
 
-    recordsDb.set(recordId, record);
+    // 5. Persist to PostgreSQL database
+    await db.createRecord(record);
 
-    const normPatient = patientAddress.toLowerCase();
-    const existingList = patientRecordsMap.get(normPatient) || [];
-    existingList.unshift(recordId);
-    patientRecordsMap.set(normPatient, existingList);
+    // 6. Log audit event
+    await db.logAuditEvent({
+      id: 'AUD-' + crypto.randomBytes(6).toString('hex'),
+      timestamp: Date.now(),
+      eventName: 'RecordUploaded',
+      actorRole: 'patient',
+      actorAddress: patientAddress,
+      details: `Encrypted record "${record.title}" anchored on-chain with IPFS CID: ${pinResult.cid}`,
+      txHash: anchorResult.txHash
+    });
 
     res.json({
       success: true,
@@ -207,22 +140,22 @@ router.post('/upload', upload.single('file'), async (req: Request, res: Response
 
 /**
  * GET /api/records/patient/:address
- * Retrieves all encrypted record commitments for a patient
+ * Retrieves all encrypted record commitments for a patient from PostgreSQL
  */
-router.get('/patient/:address', (req: Request, res: Response): void => {
-  const address = String(req.params.address).toLowerCase();
-  const recordIds = patientRecordsMap.get(address) || [];
+router.get('/patient/:address', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const address = String(req.params.address).toLowerCase();
+    const records = await db.getRecordsByPatient(address);
 
-  const records = recordIds
-    .map(id => recordsDb.get(id))
-    .filter((r): r is EncryptedMedicalRecord => !!r);
-
-  res.json({
-    success: true,
-    patientAddress: String(req.params.address),
-    count: records.length,
-    records
-  });
+    res.json({
+      success: true,
+      patientAddress: String(req.params.address),
+      count: records.length,
+      records
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to fetch patient records', details: err.message });
+  }
 });
 
 /**
@@ -230,28 +163,43 @@ router.get('/patient/:address', (req: Request, res: Response): void => {
  * Verifies view access and logs on-chain RecordViewed audit trail
  */
 router.get('/:recordId', async (req: Request, res: Response): Promise<void> => {
-  const recordId = String(req.params.recordId);
-  const viewerAddress = (req.query.viewerAddress as string) || CONFIG.DEMO_ROLES.HOSPITAL;
+  try {
+    const recordId = String(req.params.recordId);
+    const viewerAddress = (req.query.viewerAddress as string) || CONFIG.DEMO_ROLES.HOSPITAL;
 
-  const record = recordsDb.get(recordId);
-  if (!record) {
-    res.status(404).json({ error: 'Record not found' });
-    return;
+    const record = await db.getRecordById(recordId);
+    if (!record) {
+      res.status(404).json({ error: 'Record not found' });
+      return;
+    }
+
+    // Emit on-chain audit view log
+    const logResult = await contractRelayer.logRecordView(
+      record.patientAddress,
+      viewerAddress,
+      recordId
+    );
+
+    // Log to PostgreSQL audit trail
+    await db.logAuditEvent({
+      id: 'AUD-' + crypto.randomBytes(6).toString('hex'),
+      timestamp: Date.now(),
+      eventName: 'RecordViewed',
+      actorRole: 'hospital',
+      actorAddress: viewerAddress,
+      details: `Record ${record.title} viewed by doctor ${viewerAddress.substring(0, 10)}...`,
+      txHash: logResult.txHash
+    });
+
+    res.json({
+      success: true,
+      record,
+      viewLoggedOnChain: true,
+      auditTxHash: logResult.txHash
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to retrieve record', details: err.message });
   }
-
-  // Emit on-chain audit view log
-  const logResult = await contractRelayer.logRecordView(
-    record.patientAddress,
-    viewerAddress,
-    recordId
-  );
-
-  res.json({
-    success: true,
-    record,
-    viewLoggedOnChain: true,
-    auditTxHash: logResult.txHash
-  });
 });
 
 /**
@@ -278,8 +226,6 @@ router.post('/grant', async (req: Request, res: Response): Promise<void> => {
       duration
     );
 
-    const permKey = `${patientAddress.toLowerCase()}_${recordId}`;
-    const perms = permissionsMap.get(permKey) || [];
     const newPerm: AccessPermission = {
       recordId,
       granteeAddress: doctorAddress,
@@ -290,8 +236,20 @@ router.post('/grant', async (req: Request, res: Response): Promise<void> => {
       isActive: true,
       txHash: result.txHash
     };
-    perms.unshift(newPerm);
-    permissionsMap.set(permKey, perms);
+
+    // Save permission in PostgreSQL
+    await db.grantPermission(newPerm, patientAddress);
+
+    // Log to audit events
+    await db.logAuditEvent({
+      id: 'AUD-' + crypto.randomBytes(6).toString('hex'),
+      timestamp: Date.now(),
+      eventName: 'DoctorAccessGranted',
+      actorRole: 'patient',
+      actorAddress: patientAddress,
+      details: `Access granted to doctor ${doctorAddress.substring(0, 10)}... for record ${recordId.substring(0, 12)}...`,
+      txHash: result.txHash
+    });
 
     res.json({
       success: true,
@@ -317,13 +275,19 @@ router.post('/revoke', async (req: Request, res: Response): Promise<void> => {
       recordId
     );
 
-    const permKey = `${patientAddress.toLowerCase()}_${recordId}`;
-    const perms = permissionsMap.get(permKey) || [];
-    for (const p of perms) {
-      if (p.granteeAddress.toLowerCase() === doctorAddress.toLowerCase()) {
-        p.isActive = false;
-      }
-    }
+    // Update in PostgreSQL
+    await db.revokePermission(recordId, doctorAddress);
+
+    // Log to audit events
+    await db.logAuditEvent({
+      id: 'AUD-' + crypto.randomBytes(6).toString('hex'),
+      timestamp: Date.now(),
+      eventName: 'DoctorAccessRevoked',
+      actorRole: 'patient',
+      actorAddress: patientAddress || '0x...',
+      details: `Access revoked for doctor ${doctorAddress.substring(0, 10)}... on record ${recordId.substring(0, 12)}...`,
+      txHash: result.txHash
+    });
 
     res.json({
       success: true,
@@ -337,23 +301,21 @@ router.post('/revoke', async (req: Request, res: Response): Promise<void> => {
 
 /**
  * GET /api/records/permissions/:patientAddress
- * Lists all active permissions granted by the patient
+ * Lists all active permissions granted by the patient from PostgreSQL
  */
-router.get('/permissions/:patientAddress', (req: Request, res: Response): void => {
-  const patient = String(req.params.patientAddress).toLowerCase();
-  const allPerms: AccessPermission[] = [];
+router.get('/permissions/:patientAddress', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const patient = String(req.params.patientAddress).toLowerCase();
+    const permissions = await db.getPermissionsForPatient(patient);
 
-  for (const [key, perms] of permissionsMap.entries()) {
-    if (key.startsWith(patient)) {
-      allPerms.push(...perms);
-    }
+    res.json({
+      success: true,
+      patientAddress: String(req.params.patientAddress),
+      permissions
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to fetch permissions', details: err.message });
   }
-
-  res.json({
-    success: true,
-    patientAddress: String(req.params.patientAddress),
-    permissions: allPerms
-  });
 });
 
 /**
@@ -386,9 +348,22 @@ router.post('/break-glass', async (req: Request, res: Response): Promise<void> =
       timestamp: Date.now(),
       txHash: result.txHash
     };
-    breakGlassLogs.unshift(log);
 
-    const record = recordsDb.get(recordId);
+    // Save in PostgreSQL
+    await db.logBreakGlass(log);
+
+    // Log to audit events
+    await db.logAuditEvent({
+      id: 'AUD-' + crypto.randomBytes(6).toString('hex'),
+      timestamp: Date.now(),
+      eventName: 'BreakGlassEmergency',
+      actorRole: 'emergency',
+      actorAddress: responder,
+      details: `Emergency Break-Glass Override executed by ${responder.substring(0, 10)}... Reason: ${reason}`,
+      txHash: result.txHash
+    });
+
+    const record = await db.getRecordById(recordId);
 
     res.json({
       success: true,

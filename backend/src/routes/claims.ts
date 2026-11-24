@@ -1,50 +1,11 @@
 import { Router, Request, Response } from 'express';
 import crypto from 'crypto';
 import { contractRelayer } from '../services/contractRelayer.js';
-import { ClaimRecord, ZKClaimPublicInputs, ZKProofData } from '../types/index.js';
+import { ClaimRecord } from '../types/index.js';
 import { CONFIG } from '../config/index.js';
+import { db } from '../db/index.js';
 
 const router = Router();
-
-// In-memory claim records database
-const claimsDb = new Map<string, ClaimRecord>();
-
-// Seed sample settled claim
-function seedDemoClaims() {
-  const claim1Id = 'CLM-8801-5501';
-  const claim1Nullifier = '0x0b0b8c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1122';
-  
-  claimsDb.set(claim1Id, {
-    id: claim1Id,
-    claimNullifier: claim1Nullifier,
-    policyCommitment: '0x12b6dcec349f74e997d13b582eb6cdad2860e0c0cc3e9aa3676404e4edbb79be',
-    hospitalAddress: CONFIG.DEMO_ROLES.HOSPITAL,
-    hospitalName: 'Mayo Clinic Healthcare System',
-    claimAmount: 2500,
-    claimDate: 1732320000,
-    procedureCode: '102',
-    procedureName: 'Laparoscopic Appendectomy',
-    status: 'settled',
-    publicInputs: {
-      approvedHospitalRoot: CONFIG.CONTRACTS.ApprovedHospitalMerkleRootDecimal,
-      policyCommitment: '18235321658131723648847967345698509104713943756027922529868321960257868673173',
-      claimAmount: '2500',
-      claimDate: '1732320000',
-      claimNullifier: claim1Nullifier
-    },
-    proof: {
-      pi_a: ['0x1111', '0x2222'],
-      pi_b: [['0x3333', '0x4444'], ['0x5555', '0x6666']],
-      pi_c: ['0x7777', '0x8888'],
-      protocol: 'groth16',
-      curve: 'bn128'
-    },
-    txHash: '0x4a7e9b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a',
-    settledAt: Date.now() - 3600000
-  });
-}
-
-seedDemoClaims();
 
 /**
  * POST /api/claims/submit
@@ -71,9 +32,11 @@ router.post('/submit', async (req: Request, res: Response): Promise<void> => {
       ? publicInputs.claimNullifier
       : '0x' + BigInt(publicInputs.claimNullifier).toString(16).padStart(64, '0');
 
-    // 1. Replay Protection Guard
-    const isSpent = await contractRelayer.isNullifierSpent(nullifierHex);
-    if (isSpent) {
+    // 1. Replay Protection Guard (check database and smart contract)
+    const existingClaim = await db.getClaimByNullifier(nullifierHex);
+    const isSpentOnChain = await contractRelayer.isNullifierSpent(nullifierHex);
+
+    if (existingClaim || isSpentOnChain) {
       res.status(409).json({
         error: 'Replay Attack Prevented: This claim nullifier has already been settled on-chain',
         nullifier: nullifierHex,
@@ -117,7 +80,19 @@ router.post('/submit', async (req: Request, res: Response): Promise<void> => {
       settledAt: Date.now()
     };
 
-    claimsDb.set(claimId, claimRecord);
+    // 3. Persist to PostgreSQL database
+    await db.createClaim(claimRecord);
+
+    // 4. Log audit event to database
+    await db.logAuditEvent({
+      id: 'AUD-' + crypto.randomBytes(6).toString('hex'),
+      timestamp: Date.now(),
+      eventName: 'ClaimSettled',
+      actorRole: 'hospital',
+      actorAddress: recipient,
+      details: `Claim ${claimId} verified by ZKP and settled for $${amountNum}. Nullifier: ${nullifierHex.substring(0, 18)}...`,
+      txHash: settlementResult.txHash
+    });
 
     res.json({
       success: true,
@@ -142,12 +117,15 @@ router.post('/submit', async (req: Request, res: Response): Promise<void> => {
 router.get('/nullifier/:nullifier', async (req: Request, res: Response): Promise<void> => {
   try {
     const nullifier = String(req.params.nullifier);
-    const isSpent = await contractRelayer.isNullifierSpent(nullifier);
+    const existingInDb = await db.getClaimByNullifier(nullifier);
+    const isSpentOnChain = await contractRelayer.isNullifierSpent(nullifier);
+    const isSpent = Boolean(existingInDb || isSpentOnChain);
 
     res.json({
       nullifier,
       isSpent,
-      status: isSpent ? 'SPENT' : 'UNSPENT'
+      status: isSpent ? 'SPENT' : 'UNSPENT',
+      claim: existingInDb || null
     });
   } catch (err: any) {
     res.status(500).json({ error: 'Failed to check nullifier status', details: err.message });
@@ -156,15 +134,19 @@ router.get('/nullifier/:nullifier', async (req: Request, res: Response): Promise
 
 /**
  * GET /api/claims
- * Returns list of all submitted / settled claims
+ * Returns list of all submitted / settled claims from PostgreSQL
  */
-router.get('/', (_req: Request, res: Response): void => {
-  const claims = Array.from(claimsDb.values()).sort((a, b) => (b.settledAt || 0) - (a.settledAt || 0));
-  res.json({
-    success: true,
-    count: claims.length,
-    claims
-  });
+router.get('/', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const claims = await db.getAllClaims();
+    res.json({
+      success: true,
+      count: claims.length,
+      claims
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to retrieve claims', details: err.message });
+  }
 });
 
 /**
@@ -180,7 +162,7 @@ router.get('/escrow-status', async (_req: Request, res: Response): Promise<void>
       ...status
     });
   } catch (err: any) {
-    res.status(500).json({ error: 'Failed to get escrow status', details: err.message });
+    res.status(500).json({ error: 'Failed to retrieve escrow status', details: err.message });
   }
 });
 
