@@ -1,6 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import { CONFIG } from './config/index.js';
+import { db } from './db/index.js';
 import authRouter from './routes/auth.js';
 import recordsRouter from './routes/records.js';
 import zkpRouter from './routes/zkp.js';
@@ -9,6 +10,15 @@ import dashboardRouter from './routes/dashboard.js';
 import auditRouter from './routes/audit.js';
 
 const app = express();
+
+// Initialize database on boot
+db.init().then((connected) => {
+  if (connected) {
+    console.log('📦 [Server] PostgreSQL database connected and operational.');
+  } else {
+    console.log('📦 [Server] PostgreSQL not connected. Running in-memory database fallback.');
+  }
+});
 
 // Middleware
 app.use(cors({
@@ -35,7 +45,9 @@ const handleHealthCheck = (_req: Request, res: Response) => {
     service: 'ZKP Health Claims Platform Backend',
     port: CONFIG.PORT,
     timestamp: new Date().toISOString(),
+    database: db.isConnected ? 'PostgreSQL (Cloud Connected)' : 'In-Memory (Fallback)',
     modules: {
+      database: db.isConnected ? 'ONLINE (PostgreSQL)' : 'ONLINE (In-Memory)',
       auth: 'ONLINE',
       records: 'ONLINE',
       zkp: 'ONLINE',
@@ -75,7 +87,7 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
 const server = app.listen(CONFIG.PORT, () => {
   console.log(`
   ==============================================================
-   🛡️  ZKP HEALTH CLAIMS PLATFORM - BACKEND SERVICE ONLINE
+   🛡️   ZKP HEALTH CLAIMS PLATFORM - BACKEND SERVICE ONLINE
   ==============================================================
    - Server Port:      http://localhost:${CONFIG.PORT}
    - Health Check:     http://localhost:${CONFIG.PORT}/api/health

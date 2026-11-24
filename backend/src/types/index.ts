@@ -76,6 +76,17 @@ export interface RecordViewLog {
   txHash?: string;
 }
 
+export interface AuditEvent {
+  id: string;
+  timestamp: number;
+  eventName: string;
+  actorRole: UserRole | string;
+  actorAddress: string;
+  details: string;
+  txHash?: string;
+  badge?: 'success' | 'warning' | 'danger' | 'info';
+}
+
 export interface ZKClaimPublicInputs {
   approvedHospitalRoot: string;
   policyCommitment: string;
